@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Datos ESP32</title>
+  <script>
+    async function fetchData() {
+      const res = await fetch("http://localhost:8000/data");
+      const json = await res.json();
+      const table = document.getElementById("data-table");
+      table.innerHTML = "<tr><th>VoltajeEntrada</th><th>VoltajeDiodo</th><th>VoltajeSalida</th><th>CorrienteEntrada</th><th>CorrienteInductor</th><th>CorrienteDiodo</th><th>CorrienteSalida</th></tr>";
+      json.measurements.forEach(row => {
+        table.innerHTML += `<tr>
+          <td>${row.VoltajeEntrada}</td>
+          <td>${row.VoltajeDiodo}</td>
+          <td>${row.VoltajeSalida}</td>
+          <td>${row.CorrienteEntrada}</td>
+          <td>${row.CorrienteInductor}</td>
+          <td>${row.CorrienteDiodo}</td>
+          <td>${row.CorrienteSalida}</td>
+        </tr>`;
+      });
+    }
+
+    setInterval(fetchData, 2000); // refrescar cada 2 segundos
+  </script>
+</head>
+<body>
+  <h1>Últimos datos recibidos del ESP32</h1>
+  <table border="1" id="data-table"></table>
+</body>
+</html>
