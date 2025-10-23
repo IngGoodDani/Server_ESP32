@@ -2,14 +2,23 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Datos ESP32</title>
+  <title>Monitoreo</title>
+  <script src="Chart.js"></script>
+  <link rel="stylesheet" href="styles.css">
   <script>
+    const charts = {}; // almacenar las gráficas por nombre
+    const MAX_POINTS = 100; // máximo de puntos visibles
+
     async function fetchData() {
-      const res = await fetch("http://localhost:8000/data");
+      const res = await fetch("http://localhost:8000/data"); 
       const json = await res.json();
+      const measurements = json.measurements;
+      if (measurements.length === 0) return;
+
+      // ---- Actualizar tabla ----
       const table = document.getElementById("data-table");
       table.innerHTML = "<tr><th>VoltajeEntrada</th><th>VoltajeDiodo</th><th>VoltajeSalida</th><th>CorrienteEntrada</th><th>CorrienteInductor</th><th>CorrienteDiodo</th><th>CorrienteSalida</th></tr>";
-      json.measurements.forEach(row => {
+      measurements.forEach(row => {
         table.innerHTML += `<tr>
           <td>${row.VoltajeEntrada}</td>
           <td>${row.VoltajeDiodo}</td>
@@ -20,13 +29,72 @@
           <td>${row.CorrienteSalida}</td>
         </tr>`;
       });
+
+      // ---- Último dato recibido ----
+      const last = measurements[measurements.length - 1];
+      const now = new Date().toLocaleTimeString(); // eje X 
+
+      const variables = {
+        "VoltajeEntrada": last.VoltajeEntrada,
+        "VoltajeDiodo": last.VoltajeDiodo,
+        "VoltajeSalida": last.VoltajeSalida,
+        "CorrienteEntrada": last.CorrienteEntrada,
+        "CorrienteInductor": last.CorrienteInductor,
+        "CorrienteDiodo": last.CorrienteDiodo,
+        "CorrienteSalida": last.CorrienteSalida
+      };
+
+      // ---- Actualizar cada gráfica ----
+      for (const [key, value] of Object.entries(variables)) {
+        if (!charts[key]) {
+          charts[key] = new Chart(document.getElementById(key), {
+            type: "line",
+            data: {
+              labels: [now],
+              datasets: [{ label: key, data: [value], borderColor: getRandomColor(), fill: false }]
+            },
+            options: {
+              animation: false,
+              scales: { x: { display: true }, y: { beginAtZero: true } }
+            }
+          });
+        } else {
+          const chart = charts[key];
+          chart.data.labels.push(now);
+          chart.data.datasets[0].data.push(value);
+
+          // Limitar a MAX_POINTS
+          if (chart.data.labels.length > MAX_POINTS) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+          }
+          chart.update();
+        }
+      }
     }
 
-    setInterval(fetchData, 2000); // refrescar cada 2 segundos
+    // Colores aleatorios por gráfica
+    function getRandomColor() {
+      return "hsl(" + Math.floor(Math.random() * 360) + ", 70%, 50%)";
+    }
+
+    setInterval(fetchData, 100); 
   </script>
 </head>
 <body>
-  <h1>Últimos datos recibidos del ESP32</h1>
-  <table border="1" id="data-table"></table>
+  <h1>Monitoreo Convertidor de potencia</h1>
+
+  <div class="grid">
+    <canvas id="VoltajeEntrada"></canvas>
+    <canvas id="VoltajeDiodo"></canvas>
+    <canvas id="VoltajeSalida"></canvas>
+    <canvas id="CorrienteEntrada"></canvas>
+    <canvas id="CorrienteInductor"></canvas>
+    <canvas id="CorrienteDiodo"></canvas>
+    <canvas id="CorrienteSalida"></canvas>
+  </div>
+
+  <h2>Tabla de Datos Recibidos</h2>
+  <table id="data-table"></table>
 </body>
 </html>
