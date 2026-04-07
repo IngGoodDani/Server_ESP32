@@ -1,6 +1,7 @@
 #Carpetas
 backend/__pycache__/
 backend/venv/
+backend/backend/
 peruanada/
 prueba_coneccion_esp/
 
@@ -8,3 +9,6 @@ prueba_coneccion_esp/
 backend/mediciones.json
 backend/mediciones_1.json
 backend/mediciones_2.json
+backend/mediciones_3_editar.json
+backend/mediciones_4.json
+frontend/index1.html

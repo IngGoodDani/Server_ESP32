@@ -2,99 +2,211 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Monitoreo</title>
-  <script src="Chart.js"></script>
-  <link rel="stylesheet" href="styles.css">
-  <script>
-    const charts = {}; // almacenar las gráficas por nombre
-    const MAX_POINTS = 100; // máximo de puntos visibles
-
-    async function fetchData() {
-      const res = await fetch("http://localhost:8000/data"); 
-      const json = await res.json();
-      const measurements = json.measurements;
-      if (measurements.length === 0) return;
-
-      // ---- Actualizar tabla ----
-      const table = document.getElementById("data-table");
-      table.innerHTML = "<tr><th>VoltajeEntrada</th><th>VoltajeDiodo</th><th>VoltajeSalida</th><th>CorrienteEntrada</th><th>CorrienteInductor</th><th>CorrienteDiodo</th><th>CorrienteSalida</th></tr>";
-      measurements.forEach(row => {
-        table.innerHTML += `<tr>
-          <td>${row.VoltajeEntrada}</td>
-          <td>${row.VoltajeDiodo}</td>
-          <td>${row.VoltajeSalida}</td>
-          <td>${row.CorrienteEntrada}</td>
-          <td>${row.CorrienteInductor}</td>
-          <td>${row.CorrienteDiodo}</td>
-          <td>${row.CorrienteSalida}</td>
-        </tr>`;
-      });
-
-      // ---- Último dato recibido ----
-      const last = measurements[measurements.length - 1];
-      const now = new Date().toLocaleTimeString(); // eje X 
-
-      const variables = {
-        "VoltajeEntrada": last.VoltajeEntrada,
-        "VoltajeDiodo": last.VoltajeDiodo,
-        "VoltajeSalida": last.VoltajeSalida,
-        "CorrienteEntrada": last.CorrienteEntrada,
-        "CorrienteInductor": last.CorrienteInductor,
-        "CorrienteDiodo": last.CorrienteDiodo,
-        "CorrienteSalida": last.CorrienteSalida
-      };
-
-      // ---- Actualizar cada gráfica ----
-      for (const [key, value] of Object.entries(variables)) {
-        if (!charts[key]) {
-          charts[key] = new Chart(document.getElementById(key), {
-            type: "line",
-            data: {
-              labels: [now],
-              datasets: [{ label: key, data: [value], borderColor: getRandomColor(), fill: false }]
-            },
-            options: {
-              animation: false,
-              scales: { x: { display: true }, y: { beginAtZero: true } }
-            }
-          });
-        } else {
-          const chart = charts[key];
-          chart.data.labels.push(now);
-          chart.data.datasets[0].data.push(value);
-
-          // Limitar a MAX_POINTS
-          if (chart.data.labels.length > MAX_POINTS) {
-            chart.data.labels.shift();
-            chart.data.datasets[0].data.shift();
-          }
-          chart.update();
-        }
-      }
-    }
-
-    // Colores aleatorios por gráfica
-    function getRandomColor() {
-      return "hsl(" + Math.floor(Math.random() * 360) + ", 70%, 50%)";
-    }
-
-    setInterval(fetchData, 100); 
-  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitor Convertidor de Potencia</title>
+    <script src="js/Chart.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <h1>Monitoreo Convertidor de potencia</h1>
+  <div class="container">
+    <div class="header">
+      <h1>🔌 Monitor Convertidor de Potencia</h1>
+      <p>Sistema de monitoreo en tiempo real con predicción por IA</p>
+    </div>
 
-  <div class="grid">
-    <canvas id="VoltajeEntrada"></canvas>
-    <canvas id="VoltajeDiodo"></canvas>
-    <canvas id="VoltajeSalida"></canvas>
-    <canvas id="CorrienteEntrada"></canvas>
-    <canvas id="CorrienteInductor"></canvas>
-    <canvas id="CorrienteDiodo"></canvas>
-    <canvas id="CorrienteSalida"></canvas>
+    <div class="controls">
+      <div class="controls-grid">
+        <button class="btn-record" id="btnRecord">
+          ▶ Iniciar
+        </button>
+        <button class="btn-csv" id="btnCSV">
+          💾 Guardar CSV
+        </button>
+        
+        <div class="prediction-control">
+          <label>Predicción:</label>
+          <input type="range" id="predictionHorizon" min="10" max="200" value="50" step="10">
+          <span class="value"><span id="horizonValue">50</span></span>
+        </div>
+        
+        <button class="btn-ai" id="btnPredict">
+          🧠 Predicción IA
+        </button>
+        <button class="btn-toggle" id="btnTogglePred" disabled>
+          Mostrar Predicciones
+        </button>
+        
+        <div class="prediction-status" id="predictionStatus">
+          🔄 Procesando...
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-grid">
+        <h2>Configuración</h2>
+        
+        <div class="time-control">
+          <label>Tiempo de muestreo (ms)</label>
+          <input type="range" id="samplingTime" min="10" max="200" value="100" step="10">
+          <span class="value"><span id="timeValue">100</span></span>
+          <button class="btn-aplicar" id="btnSetSampling">Aplicar</button>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="tabs-container">
+      <div class="tabs">
+        <button class="tab active" data-tab="graphs">📊 Gráficas</button>
+        <button class="tab" data-tab="realtime">⚡ Tiempo Real</button>
+        <button class="tab" data-tab="history">📹 Historial</button>
+      </div>
+
+      <div class="tab-content">
+        <div class="tab-pane active" id="tab-graphs">
+          <div class="mode-buttons">
+            <button class="mode-btn active" data-mode="all">Todas las gráficas</button>
+            <button class="mode-btn" data-mode="single">Gráfica individual</button>
+            <button class="mode-btn" data-mode="comparison">Comparativa E/S</button>
+            <div class="time-control">
+              <label>Escala de gráfica: </label>
+              <input type="range" id="sampScaleTime" min="10" max="200" value="100" step="10">
+              <span class="value"><span id="scaleTime">100</span></span>
+            </div>
+          </div>
+
+          <div id="graphs-container">
+            <div class="graphs-grid" id="allGraphs"></div>
+            <div class="single-graph hidden" id="singleGraph">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                  <label>Seleccionar variable:</label>
+                  <select id="varSelect">
+                    <option value="VoltajeEntrada">VoltajeEntrada</option>
+                    <option value="VoltajeDiodo">VoltajeDiodo</option>
+                    <option value="VoltajeSalida">VoltajeSalida</option>
+                    <option value="CorrienteEntrada">CorrienteEntrada</option>
+                    <option value="CorrienteInductor">CorrienteInductor</option>
+                    <option value="CorrienteDiodo">CorrienteDiodo</option>
+                    <option value="CorrienteSalida">CorrienteSalida</option>
+                    <option value="PotenciaEntrada">PotenciaEntrada</option>
+                    <option value="PotenciaSalida">PotenciaSalida</option>
+                  </select>
+                </div>
+                <button class="btn-csv" id="btnCSVSingle" style="margin: 0;">
+                  💾 Descargar CSV Variable
+                </button>
+              </div>
+              <canvas id="singleCanvas"></canvas>
+            </div>
+            <div class="single-graph hidden" id="comparisonGraph">
+              <h3>Comparativa Entrada vs Salida</h3>
+              <canvas id="comparisonCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-pane" id="tab-realtime">
+          <div class="realtime-grid" id="realtimeGrid"></div>
+        </div>
+
+        <div class="tab-pane" id="tab-history">
+          <div class="security-cam-container">
+            <!-- ENCABEZADO CORREGIDO -->
+            <div class="cam-header">
+              <div class="cam-header-left">
+                <div class="rec-indicator">
+                  <div class="rec-dot"></div>
+                  MODO HISTORIAL
+                </div>
+                <div class="cam-timestamp" id="camTimestamp">--:--:--</div>
+              </div>
+              <div class="cam-controls">
+                <!-- SOLO ESTOS BOTONES (sin btnToggleAutoUpdate) -->
+                <button class="refresh-btn" id="btnRefreshMeasurements">
+                  🔄 Actualizar Lista
+                </button>
+              </div>
+            </div>
+            
+            <!-- LISTA DE MEDICIONES (obligatorio) -->
+            <div class="measurements-list" id="measurementsList">
+              <div class="no-measurements">
+                <p>Cargando mediciones...</p>
+              </div>
+            </div>
+
+            <!-- DETALLES DE MEDICIÓN (inicialmente oculto) -->
+            <div class="measurement-details" id="measurementDetails" style="display: none;">
+              <div class="details-header">
+                <h4>Medición Seleccionada</h4>
+                <button class="refresh-btn" id="btnLoadMeasurementData">
+                  📊 Cargar Datos
+                </button>
+              </div>
+              <div class="details-info" id="measurementInfo">
+                <!-- Información de la medición se cargará aquí -->
+              </div>
+                <div>
+                  <button class="cam-btn danger" id="btnClearHistory">
+                  🗑️  Eliminar medicion
+                  </button>
+                </div>
+            </div>
+
+            <!-- TIMELINE CONTROLS (inicialmente oculto) -->
+            <div class="timeline-controls" id="timelineControls" style="display: none;">
+              <div class="timeline-info">
+                <!-- CAMBIADO: "Medición ID" en lugar de "Total en BD" -->
+                <div>Posición: <span id="timelinePosition">0</span> / <span id="timelineTotal">0</span></div>
+                <div>Ventana: <span id="windowSize">200</span> muestras</div>
+                <div>Medición ID: <span id="currentMeasurementId">0</span></div>
+              </div>
+              
+              <input 
+                type="range" 
+                class="timeline-slider" 
+                id="timelineSlider" 
+                min="0" 
+                max="100" 
+                value="100"
+                disabled
+              >
+              
+              <div class="playback-controls">
+                <!-- CAMBIADO: Textos más cortos -->
+                <button class="cam-btn" id="btnJumpStart" disabled>⏮️ Inicio</button>
+                <button class="cam-btn" id="btnStepBack" disabled>◀️ -10</button>
+                <button class="cam-btn" id="btnPlayback" disabled>▶️ Reproducir</button>
+                <button class="cam-btn" id="btnStepForward" disabled>▶️ +10</button>
+                <button class="cam-btn" id="btnJumpEnd" disabled>⏭️ Final</button>
+              </div>
+            </div>
+
+            <!-- GRÁFICAS DEL HISTORIAL -->
+            <div class="cam-view-grid" id="camViewGrid">
+              <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <h3>Selecciona una medición</h3>
+                <p>Selecciona una medición de la lista para ver sus datos</p>
+              </div>
+            </div>
+
+            <!-- ESTADO DE IA (opcional) -->
+            <div class="ai-status" id="aiStatus" style="display: none;">
+              <h4>🧠 Estado del Modelo de IA</h4>
+              <p><strong>Estado:</strong> <span id="aiModelStatus">⏳ Inicializando...</span></p>
+              <p><strong>Muestras totales:</strong> <span id="aiSamples">0</span></p>
+              <p><strong>Error (RMSE):</strong> <span id="aiRMSE">--</span></p>
+              <p><strong>Última actualización:</strong> <span id="aiLastUpdate">--</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <h2>Tabla de Datos Recibidos</h2>
-  <table id="data-table"></table>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
