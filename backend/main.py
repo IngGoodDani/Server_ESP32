@@ -35,8 +35,8 @@ app.add_middleware(
 )
 
 # Creación de objetos
-ws_controller = WebSocketController()
 db = HybridDatabase()
+ws_controller = WebSocketController(db)
 
 # Inicializar DB
 db.init_sqlite()
@@ -51,6 +51,8 @@ class Measurement(BaseModel):
     CorrienteInductor: float
     CorrienteDiodo: float
     CorrienteSalida: float
+    PotenciaEntrada: float
+    PotenciaSalida: float
 
 # Lista en memoria para prueba
 data_storage = []
@@ -112,15 +114,27 @@ def status_measurement():
 # Metodos POST
 #----------------------------------------------------------
 @app.post("/esp32/data")
-def receive_data(payload: Measurement):
+def receive_data(data: Measurement):
     """Recibe datos de la ESP32 por POST"""
-    global current_medicion
-    if current_medicion is None:
-        return {"error": "No hay medición activa"}
-
-    data_dict = payload.dict()
-    current_medicion["datos"].append(data_dict)
-    return {"status": "ok", "data": payload}
+    try:
+        if db.current_measurement_id is None:
+            return {
+                "status": "rejected",
+                "message": "No hay una medición activa. Los datos han sido ignorados."
+            }
+        
+        print(f"Datos recibidos: {data}")
+        sample_index = db.save_measurement(data)
+        
+        return {
+            "status": "ok",
+            "measurement_id": db.current_measurement_id,
+            "sample_index": sample_index,
+            "total_samples": db.measurement_sample_counter
+        }
+        
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.post("/medicion/finalizar")
 def finalizar_medicion():
@@ -237,6 +251,51 @@ def cleanup_all_cache():
     try:
         deleted = db.cleanup_all_data()
         return {"status": "ok", "deleted_count": deleted}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.delete("/measurements/{measurement_id}")
+def delete_measurement_sample(measurement_id: int):
+    """Elimina una medicion por su ID"""
+    try:
+        # El parámetro de la consulta debe ser una tupla: (measurement_id,)
+        parametro = (measurement_id,)
+        
+        with pg.get_db_cursor() as cur:
+            # 1. Eliminar de VOLTAJES
+            delete_voltajes = """
+                DELETE FROM VOLTAJES
+                WHERE ID_Mediciones = %s
+            """
+            cur.execute(delete_voltajes, parametro)
+            
+            # 2. Eliminar de CORRIENTES
+            delete_corrientes = """
+                DELETE FROM CORRIENTES
+                WHERE ID_Mediciones = %s
+            """
+            cur.execute(delete_corrientes, parametro)
+            
+            # 3. Eliminar de POTENCIAS
+            delete_potencias= """
+                DELETE FROM POTENCIAS
+                WHERE ID_Mediciones = %s
+            """
+            cur.execute(delete_potencias, parametro)
+            
+            # 4. Eliminar de MEDICIONES (la tabla principal)
+            delete_medicion = """
+                DELETE FROM MEDICIONES
+                WHERE ID_Mediciones = %s
+            """
+            cur.execute(delete_medicion, parametro)
+            
+            db.current_measurement_id = None
+            
+        return {
+            "status": "ok",
+            "message": f"Medición con ID {measurement_id} eliminada correctamente."
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

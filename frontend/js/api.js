@@ -256,9 +256,9 @@ export async function toggleRecording() {
   try {
     let response;
     if (newIsRecording) {
-      response = await fetch(`${API_URL}/esp32/start-measurement`, { method: 'POST' });
+      response = await fetch(`${API_URL}/esp32/start-measurement`, { method: 'PUT' });
     } else {
-      response = await fetch(`${API_URL}/esp32/end-measurement`, { method: 'POST' });
+      response = await fetch(`${API_URL}/esp32/end-measurement`, { method: 'PUT' });
     }
 
     if (!response.ok) {

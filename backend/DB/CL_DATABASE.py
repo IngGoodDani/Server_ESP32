@@ -60,7 +60,7 @@ class HybridDatabase():
         self.current_measurement_id = None
         self.measurement_sample_counter = 0
         self.connection_pool = []
-        
+    
     def init_sqlite(self):
         """Inicializa la base de datos SQLite"""
         try:
