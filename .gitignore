@@ -6,9 +6,13 @@ peruanada/
 prueba_coneccion_esp/
 
 #Archivos
+backend/.env
+backend/insertar_mediciones.py
+backend/cache_mediciones.db
 backend/mediciones.json
 backend/mediciones_1.json
 backend/mediciones_2.json
 backend/mediciones_3_editar.json
 backend/mediciones_4.json
+
 frontend/index1.html

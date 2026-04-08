@@ -1,21 +1,23 @@
 #backend/main.py
-import threading
-import webbrowser
-from pathlib import Path
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-import json
-from pathlib import Path
-import uvicorn
+import  threading
+import  webbrowser
+import  uvicorn
+import  json
+from    pathlib     import Path
+from    fastapi     import FastAPI, WebSocket
+from    pydantic    import BaseModel
+from    pathlib     import Path
+from    datetime    import datetime
+from    fastapi.middleware.cors import CORSMiddleware
+from    fastapi.responses import RedirectResponse, HTMLResponse, FileResponse
+from    fastapi.staticfiles import StaticFiles
+from    controllers.websocket_controller import WebSocketController
+from    DB.CL_DATABASE import HybridDatabase, AuxiliaresPG
 
-from datetime import datetime
 
 current_medicion = None  # Aquí se guarda la medición activa
 
-app = FastAPI()
+app = FastAPI(title="Dashboard de Telemetría")
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONT_DIR = BASE_DIR.parent / "frontend"
@@ -31,6 +33,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Creación de objetos
+ws_controller = WebSocketController()
+db = HybridDatabase()
+
+# Inicializar DB
+db.init_sqlite()
+db.init_postgres()
 
 # Modelo de datos recibido
 class Measurement(BaseModel):
@@ -64,18 +74,46 @@ def save_to_json(data: dict):
     with open(DATA_FILE, "w") as f:
         json.dump(current_data, f, indent=4)
 
-#Metodos GET
-@app.get("/")
-def root():
-    return {"msg": "Servidor listo"}
+#----------------------------------------------------------
+# Metodos GET
+#----------------------------------------------------------
+@app.get("/", response_class=RedirectResponse)
+def home_page():
+    """Redirige a la aplicación principal"""
+    return RedirectResponse(url="/app")
+
+@app.get("/app", response_class=HTMLResponse)
+def serve_app():
+    """Sirve la interfaz principal HTML"""
+    if INDEX_FILE.exists():
+        return FileResponse(INDEX_FILE)
+    return HTMLResponse(content="<h1>Error: index.html no encontrado</h1>", status_code=404)
 
 @app.get("/data")
 def get_data():
     return {"measurements": data_storage[-20:]}  # últimos 20 datos
 
-#Metodos POST
+@app.get("/esp32/status-measurement")
+def status_measurement():
+    try:
+        if db.current_measurement_id is None:
+            return {
+                "status": "ok", "measuring": False
+            }
+        else:
+            return {
+                "status": "ok", "measuring": True
+            }
+        
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+#----------------------------------------------------------
+# Metodos POST
+#----------------------------------------------------------
 @app.post("/esp32/data")
 def receive_data(payload: Measurement):
+    """Recibe datos de la ESP32 por POST"""
     global current_medicion
     if current_medicion is None:
         return {"error": "No hay medición activa"}
@@ -83,16 +121,6 @@ def receive_data(payload: Measurement):
     data_dict = payload.dict()
     current_medicion["datos"].append(data_dict)
     return {"status": "ok", "data": payload}
-
-@app.post("/medicion/iniciar")
-def iniciar_medicion():
-    global current_medicion
-    current_medicion = {
-        "fecha_inicio": datetime.now().isoformat(),
-        "fecha_fin": None,
-        "datos": []
-    }
-    return {"status": "medicion iniciada"}
 
 @app.post("/medicion/finalizar")
 def finalizar_medicion():
@@ -155,23 +183,73 @@ def finalizar_medicion():
     current_medicion = None
     return {"status": "medición guardada y enviada a base de datos"}
 
-@app.get("/", response_class=RedirectResponse)
-def home_page():
-    """Redirige a la aplicación principal"""
-    return RedirectResponse(url="/app")
+#----------------------------------------------------------
+# Metodos PUT
+#----------------------------------------------------------
+@app.put("/esp32/start-measurement")
+def start_measurement():
+    """Inicia una nueva medición"""
+    try:
+        measurement_id = db.start_measurement()
+        return {"status": "ok", "measurement_id": measurement_id}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
-@app.get("/app", response_class=HTMLResponse)
-def serve_app():
-    """Sirve la interfaz principal HTML"""
-    if INDEX_FILE.exists():
-        return FileResponse(INDEX_FILE)
-    return HTMLResponse(content="<h1>Error: index.html no encontrado</h1>", status_code=404)
-#    if os.path.exists("index.html"):
-#        with open("index.html", "r", encoding="utf-8") as f:
-#            return HTMLResponse(content=f.read())
-#    
-#    return HTMLResponse(content="<h1>Error: index.html no encontrado</h1>")
+@app.put("/esp32/end-measurement")
+def end_measurement():
+    """Finaliza la medición actual"""
+    try:
+        if db.current_measurement_id is None:
+            print("Aviso: Intento de cerrar medición, pero no hay ninguna activa.")
+            return {"status": "info", "message": "No active measurement to end."}
+        
+        db.sync_all_data()
+        
+        measurement_id = db.current_measurement_id
+        total_samples = db.measurement_sample_counter
+        
+        db.end_measurement()
+        
+        return {
+            "status": "measurement_closed",
+            "measurement_id": measurement_id,
+            "total_samples": total_samples
+        }
+        
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
+#----------------------------------------------------------
+# Metodos DELETE
+#----------------------------------------------------------
+@app.delete("/cache/cleanup")
+def cleanup_cache(days_to_keep: int = 7):
+    """Limpia datos antiguos"""
+    try:
+        deleted = db.cleanup_old_data(days_to_keep)
+        return {"status": "ok", "deleted_count": deleted}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.delete("/cache/cleanup/all")
+def cleanup_all_cache():
+    """Limpia todos los datos antiguos"""
+    try:
+        deleted = db.cleanup_all_data()
+        return {"status": "ok", "deleted_count": deleted}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+#----------------------------------------------------------
+# Metodos WebSocket
+#----------------------------------------------------------
+@app.websocket("/ws/measurements")
+async def websocket_endpoint(websocket: WebSocket):
+    await ws_controller.handle_connection(websocket)
+
+#----------------------------------------------------------
+# Metodos del sistema
+#----------------------------------------------------------
 def init_system():
     """Inicializa el sistema"""
     print("=" * 60)
@@ -180,7 +258,7 @@ def init_system():
 
 def open_browser():
     """Abre automáticamente el navegador"""
-    url = "http://localhost:8000"
+    url = "http://localhost:8000/app"
     print(f"\nAbriendo navegador en: {url}")
     webbrowser.open(url)
 
