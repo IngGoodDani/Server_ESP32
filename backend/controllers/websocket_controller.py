@@ -1,5 +1,7 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from    fastapi     import FastAPI, WebSocket, WebSocketDisconnect
+from    pydantic    import BaseModel
+from    fastapi.responses import HTMLResponse
+from    models.measurement  import  Measurement
 
 class WebSocketController:
 
@@ -36,22 +38,22 @@ class WebSocketController:
         try:
             while True:
                 # Esperar datos del cliente
-                data = await websocket.receive_json()
-                print(f"Datos recibidos: {data}")
+                json_response = await websocket.receive_json()
+                print(f"Datos recibidos: {json_response}")
                 
-                event = data.get("event")
-                payload = data.get("data")
-                print(f"Data: {payload}")
+                event = json_response.get("event")
+                data = json_response.get("data")
+                #print(f"Data: {data}")
 
                 # ====== EVENTO: enviar datos ESP32 ======
                 if event == "esp32_data":
-                    response = self.handle_esp32_data(payload)
+                    response = self.handle_esp32_data(data)
                     await websocket.send_json(response)
 
                     # Opcional: mandar a todos (dashboard)
                     await self.broadcast({
                         "event": "new_measurement",
-                        "data": payload
+                        "data": data
                     })
 
                 # Aquí puedes:
@@ -59,18 +61,12 @@ class WebSocketController:
                 # - Guardar en base de datos
                 # - Procesar lógica
 
-                # Reenviar a todos (broadcast)
-                await self.broadcast({
-                    "event": "new_measurement",
-                    "data": data
-                })
-
         except WebSocketDisconnect:
             self.disconnect(websocket)
             
     # ====== LÓGICA (reutilizas lo que ya tenías) ======
 
-    def handle_esp32_data(self, data):
+    def handle_esp32_data(self, data: Measurement):
         try:
             if self.db.current_measurement_id is None:
                 return {
@@ -79,7 +75,9 @@ class WebSocketController:
                     "message": "No hay una medición activa"
                 }
 
-            sample_index = self.db.save_measurement(data)
+            measurements = Measurement(**data)
+            #print(f"Data: {measurements}")
+            sample_index = self.db.save_measurement(measurements)
 
             return {
                 "event": "esp32_data_response",

@@ -306,11 +306,11 @@ class HybridDatabase():
             print(f"❌ Error obteniendo datos paginados: {str(e)}")
             return {"status": "error", "message": str(e), "measurements": []}
     
-    def get_measurement_from_postgres(self, measurement_id: int, page: int = 1, limit: int = 10000):
+    def get_measurement_from_postgres(self, measurement_id: int, page: int = 1, page_size: int = 10000):
         """Obtiene datos históricos desde PostgreSQL"""
         try:
             with self.get_postgres_cursor() as cur:
-                cur.execute(queries["select_historic_pg"], (measurement_id, limit))
+                cur.execute(queries["select_historic_pg"], (measurement_id, page_size))
                 rows = cur.fetchall()
             
             measurements = []
@@ -468,6 +468,50 @@ class HybridDatabase():
             print(f"Error limpiando datos antiguos: {str(e)}")
             return 0
 
+    def delete_measurement(self, measurement_id: int):
+        """Elimina una medicion por su ID"""
+        try:
+            # El parámetro de la consulta debe ser una tupla: (measurement_id,)
+            parametro = (measurement_id,)
+            
+            with self.get_postgres_cursor() as cur:
+                # 1. Eliminar de VOLTAJES
+                delete_voltajes = """
+                    DELETE FROM VOLTAJES
+                    WHERE ID_Mediciones = %s
+                """
+                cur.execute(delete_voltajes, parametro)
+                
+                # 2. Eliminar de CORRIENTES
+                delete_corrientes = """
+                    DELETE FROM CORRIENTES
+                    WHERE ID_Mediciones = %s
+                """
+                cur.execute(delete_corrientes, parametro)
+                
+                # 3. Eliminar de POTENCIAS
+                delete_potencias= """
+                    DELETE FROM POTENCIAS
+                    WHERE ID_Mediciones = %s
+                """
+                cur.execute(delete_potencias, parametro)
+                
+                # 4. Eliminar de MEDICIONES (la tabla principal)
+                delete_medicion = """
+                    DELETE FROM MEDICIONES
+                    WHERE ID_Mediciones = %s
+                """
+                cur.execute(delete_medicion, parametro)
+                
+                self.current_measurement_id = None
+                
+            return {
+                "status": "ok",
+                "message": f"Medición con ID {measurement_id} eliminada correctamente."
+            }
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+    
     def end_measurement(self):
         try:
             with self.get_postgres_cursor() as cur:

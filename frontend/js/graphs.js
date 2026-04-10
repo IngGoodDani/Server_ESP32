@@ -2,6 +2,7 @@
 
 import { variables, colors, genericOptions } from './constants.js';
 import { getState, setState } from './state.js';
+import { safeSetTextContent } from './ui.js';
 
 export function initGraphs() {
   const container = document.getElementById('allGraphs');
@@ -65,10 +66,11 @@ export function updateGraphs() {
     // Construir etiquetas (índices o timestamps)
     const labels = data.map(d => d.index);
     const realData = data.map(d => d[variable]);
+    const lastValue = realData[realData.length - 1];
 
     chart.data.labels = labels;
     chart.data.datasets[0].data = realData;
-    safeSetTextContent(variable+'-value', realData);
+    safeSetTextContent(variable+'-value', lastValue);
     
     if (predictions && predictions[variable]) {
       const predValues = predictions[variable];

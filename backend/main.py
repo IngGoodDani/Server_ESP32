@@ -5,14 +5,15 @@ import  uvicorn
 import  json
 from    pathlib     import Path
 from    fastapi     import FastAPI, WebSocket
-from    pydantic    import BaseModel
 from    pathlib     import Path
 from    datetime    import datetime
-from    fastapi.middleware.cors import CORSMiddleware
-from    fastapi.responses import RedirectResponse, HTMLResponse, FileResponse
-from    fastapi.staticfiles import StaticFiles
-from    controllers.websocket_controller import WebSocketController
-from    DB.CL_DATABASE import HybridDatabase, AuxiliaresPG
+from    fastapi.middleware.cors import  CORSMiddleware
+from    fastapi.responses   import  RedirectResponse, HTMLResponse, FileResponse
+from    fastapi.staticfiles import  StaticFiles
+from    controllers.websocket_controller    import  WebSocketController
+from    controllers.controller  import  Controller
+from    DB.CL_DATABASE  import  HybridDatabase, AuxiliaresPG
+from    models.measurement  import  Measurement
 
 
 current_medicion = None  # Aquí se guarda la medición activa
@@ -37,22 +38,11 @@ app.add_middleware(
 # Creación de objetos
 db = HybridDatabase()
 ws_controller = WebSocketController(db)
+controll = Controller(db)
 
 # Inicializar DB
 db.init_sqlite()
 db.init_postgres()
-
-# Modelo de datos recibido
-class Measurement(BaseModel):
-    VoltajeEntrada: float
-    VoltajeDiodo: float
-    VoltajeSalida: float
-    CorrienteEntrada: float
-    CorrienteInductor: float
-    CorrienteDiodo: float
-    CorrienteSalida: float
-    PotenciaEntrada: float
-    PotenciaSalida: float
 
 # Lista en memoria para prueba
 data_storage = []
@@ -117,85 +107,9 @@ def status_measurement():
 def receive_data(data: Measurement):
     """Recibe datos de la ESP32 por POST"""
     try:
-        if db.current_measurement_id is None:
-            return {
-                "status": "rejected",
-                "message": "No hay una medición activa. Los datos han sido ignorados."
-            }
-        
-        print(f"Datos recibidos: {data}")
-        sample_index = db.save_measurement(data)
-        
-        return {
-            "status": "ok",
-            "measurement_id": db.current_measurement_id,
-            "sample_index": sample_index,
-            "total_samples": db.measurement_sample_counter
-        }
-        
+        return controll.esp32_data(data)
     except Exception as e:
         return {"status": "error", "message": str(e)}
-
-@app.post("/medicion/finalizar")
-def finalizar_medicion():
-    global current_medicion
-    if current_medicion is None:
-        return {"error": "No hay medición activa"}
-
-    current_medicion["fecha_fin"] = datetime.now().isoformat()
-
-    # Guardar en JSON
-    with open(DATA_FILE, "r") as f:
-        mediciones = json.load(f)
-    mediciones.append(current_medicion)
-    with open(DATA_FILE, "w") as f:
-        json.dump(mediciones, f, indent=4)
-
-    # Guardar en base de datos
-    import psycopg2
-    conn = psycopg2.connect(
-        host="localhost",
-        database="mediciones",
-        user="usuario_rw",
-        password="convertidores"
-    )
-    cur = conn.cursor()
-
-    # Insertar medición principal y obtener ID
-    cur.execute("""
-        INSERT INTO MEDICIONES (Fecha, Hora_Inicio, Hora_Termino)
-        VALUES (%s, %s, %s)
-        RETURNING ID_Mediciones;
-    """, (
-        current_medicion["fecha_inicio"][:10],  # fecha en formato YYYY-MM-DD
-        current_medicion["fecha_inicio"][11:19],  # hora en formato HH:MM:SS
-        current_medicion["fecha_fin"][11:19]
-    ))
-    id_medicion = cur.fetchone()[0]
-
-    # Insertar cada dato de la sesión
-    for m in current_medicion["datos"]:
-        cur.execute("""
-            INSERT INTO VOLTAJES (ID_Mediciones, Entrada, Diodo, Salida)
-            VALUES (%s, %s, %s, %s);
-        """, (id_medicion, m["VoltajeEntrada"], m["VoltajeDiodo"], m["VoltajeSalida"]))
-        cur.execute("""
-            INSERT INTO CORRIENTES (ID_Mediciones, Entrada, Diodo, Inductor, Salida)
-            VALUES (%s, %s, %s, %s, %s);
-        """, (
-            id_medicion,
-            m["CorrienteEntrada"],
-            m["CorrienteDiodo"],
-            m["CorrienteInductor"],
-            m["CorrienteSalida"]
-        ))
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    current_medicion = None
-    return {"status": "medición guardada y enviada a base de datos"}
 
 #----------------------------------------------------------
 # Metodos PUT
@@ -204,8 +118,7 @@ def finalizar_medicion():
 def start_measurement():
     """Inicia una nueva medición"""
     try:
-        measurement_id = db.start_measurement()
-        return {"status": "ok", "measurement_id": measurement_id}
+        return controll.start_measurement()
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -213,23 +126,7 @@ def start_measurement():
 def end_measurement():
     """Finaliza la medición actual"""
     try:
-        if db.current_measurement_id is None:
-            print("Aviso: Intento de cerrar medición, pero no hay ninguna activa.")
-            return {"status": "info", "message": "No active measurement to end."}
-        
-        db.sync_all_data()
-        
-        measurement_id = db.current_measurement_id
-        total_samples = db.measurement_sample_counter
-        
-        db.end_measurement()
-        
-        return {
-            "status": "measurement_closed",
-            "measurement_id": measurement_id,
-            "total_samples": total_samples
-        }
-        
+        return controll.end_measurement()
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -258,44 +155,7 @@ def cleanup_all_cache():
 def delete_measurement_sample(measurement_id: int):
     """Elimina una medicion por su ID"""
     try:
-        # El parámetro de la consulta debe ser una tupla: (measurement_id,)
-        parametro = (measurement_id,)
-        
-        with pg.get_db_cursor() as cur:
-            # 1. Eliminar de VOLTAJES
-            delete_voltajes = """
-                DELETE FROM VOLTAJES
-                WHERE ID_Mediciones = %s
-            """
-            cur.execute(delete_voltajes, parametro)
-            
-            # 2. Eliminar de CORRIENTES
-            delete_corrientes = """
-                DELETE FROM CORRIENTES
-                WHERE ID_Mediciones = %s
-            """
-            cur.execute(delete_corrientes, parametro)
-            
-            # 3. Eliminar de POTENCIAS
-            delete_potencias= """
-                DELETE FROM POTENCIAS
-                WHERE ID_Mediciones = %s
-            """
-            cur.execute(delete_potencias, parametro)
-            
-            # 4. Eliminar de MEDICIONES (la tabla principal)
-            delete_medicion = """
-                DELETE FROM MEDICIONES
-                WHERE ID_Mediciones = %s
-            """
-            cur.execute(delete_medicion, parametro)
-            
-            db.current_measurement_id = None
-            
-        return {
-            "status": "ok",
-            "message": f"Medición con ID {measurement_id} eliminada correctamente."
-        }
+        return controll.delete_measurement_sample(measurement_id)
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -319,7 +179,7 @@ def open_browser():
     """Abre automáticamente el navegador"""
     url = "http://localhost:8000/app"
     print(f"\nAbriendo navegador en: {url}")
-    webbrowser.open(url)
+    #webbrowser.open(url)
 
 if __name__ == "__main__":
     init_system()
