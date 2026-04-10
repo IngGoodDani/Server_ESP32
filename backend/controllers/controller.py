@@ -7,29 +7,29 @@ class Controller():
     def esp32_data(self, data):
         """Recibe datos de la ESP32"""
         try:
-            if db.current_measurement_id is None:
+            if self.db.current_measurement_id is None:
                 return {
                     "status": "rejected",
                     "message": "No hay una medición activa. Los datos han sido ignorados."
                 }
             
-            sample_index = db.save_measurement(data)
+            sample_index = self.db.save_measurement(data)
             
             return {
                 "status": "ok",
-                "measurement_id": db.current_measurement_id,
+                "measurement_id": self.db.current_measurement_id,
                 "sample_index": sample_index,
-                "total_samples": db.measurement_sample_counter
+                "total_samples": self.db.measurement_sample_counter
             }
             
         except Exception as e:
             return {"status": "error", "message": str(e)}
     
-    def start_measurement():
+    def start_measurement(self):
         """Inicia una nueva medición"""
         try:
-            if db.current_measurement_id is None:
-                measurement_id = db.start_measurement()
+            if self.db.current_measurement_id is None:
+                measurement_id = self.db.start_measurement()
                 return {"status": "ok", "measurement_id": measurement_id}
             else:
                 return {
@@ -39,22 +39,22 @@ class Controller():
         except Exception as e:
             return {"status": "error", "message": str(e)}
     
-    def end_measurement():
+    def end_measurement(self):
         """Finaliza la medición actual"""
         try:
-            if db.current_measurement_id is None:
+            if self.db.current_measurement_id is None:
                 print("Aviso: Intento de cerrar medición, pero no hay ninguna activa.")
                 return {
                     "status": "rejected",
                     "message": "No hay una medición activa."
                 }
             
-            db.sync_all_data()
+            self.db.sync_all_data()
             
-            measurement_id = db.current_measurement_id
-            total_samples = db.measurement_sample_counter
+            measurement_id = self.db.current_measurement_id
+            total_samples = self.db.measurement_sample_counter
             
-            db.end_measurement()
+            self.db.end_measurement()
             
             return {
                 "status": "measurement_closed",
@@ -65,13 +65,13 @@ class Controller():
         except Exception as e:
             return {"status": "error", "message": str(e)}
     
-    def delete_measurement_sample(measurement_id: int):
+    def delete_measurement_sample(self, measurement_id: int):
         """Elimina una medicion por su ID"""
         try:
             # El parámetro de la consulta debe ser una tupla: (measurement_id,)
             parametro = (measurement_id,)
             
-            with db.get_postgres_cursor() as cur:
+            with self.db.get_postgres_cursor() as cur:
                 # 1. Eliminar de VOLTAJES
                 delete_voltajes = """
                     DELETE FROM VOLTAJES
@@ -100,12 +100,20 @@ class Controller():
                 """
                 cur.execute(delete_medicion, parametro)
                 
-                db.current_measurement_id = None
+                self.db.current_measurement_id = None
                 
             return {
                 "status": "ok",
                 "message": f"Medición con ID {measurement_id} eliminada correctamente."
             }
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+    
+    def list_measurements(self):
+        """Lista todas las mediciones"""
+        try:
+            return self.db.list_measurements()
+            
         except Exception as e:
             return {"status": "error", "message": str(e)}
     

@@ -100,6 +100,15 @@ def status_measurement():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/measurements/list")
+def list_measurements():
+    """Lista todas las mediciones"""
+    try:
+        return controll.list_measurements()
+        
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 #----------------------------------------------------------
 # Metodos POST
 #----------------------------------------------------------
