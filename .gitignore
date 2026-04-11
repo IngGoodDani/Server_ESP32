@@ -2,6 +2,7 @@
 backend/__pycache__/
 backend/DB/__pycache__/
 backend/controllers/__pycache__/
+backend/models/__pycache__/
 backend/venv/
 backend/backend/
 peruanada/
