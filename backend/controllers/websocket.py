@@ -5,10 +5,11 @@ from    models.measurement  import  Measurement
 
 class CL_WEBSOCKET:
 
-    def __init__(self, db):
+    def __init__(self, db, controll):
         # Lista de clientes conectados
         self.active_connections: List[WebSocket] = []
         self.db = db
+        self.controll = controll
 
     async def connect(self, websocket: WebSocket):
         # Aceptar conexión del cliente
@@ -43,19 +44,48 @@ class CL_WEBSOCKET:
                 
                 event = json_response.get("event")
                 data = json_response.get("data")
-                #print(f"Data: {data}")
+                print(f"Event: {event}")
 
-                # ====== EVENTO: enviar datos ESP32 ======
-                if event == "esp32_data":
-                    response = self.handle_esp32_data(data)
-                    await websocket.send_json(response)
-
-                    # Opcional: mandar a todos (dashboard)
-                    await self.broadcast({
-                        "event": "new_measurement",
-                        "data": data
-                    })
-
+                match event:
+                    case "esp32_data":
+                        # ====== EVENTO: enviar datos ESP32 ======
+                        response = self.handle_esp32_data(data)
+                        await websocket.send_json(response)
+    
+                        # Opcional: mandar a todos (dashboard)
+                        await self.broadcast({
+                            "event": "new_measurement",
+                            "data": data
+                        })
+                    
+                    case "status_measurement":
+                        # ====== EVENTO: consulta de estatus ======
+                        if self.db.current_measurement_id is None:
+                            response = {
+                                "status": "ok", "measuring": False
+                            }
+                            await websocket.send_json(response)
+                        else:
+                            response = {
+                                "status": "ok", "measuring": True
+                            }
+                            await websocket.send_json(response)
+                    
+                    case "start_measurement":
+                        # ====== EVENTO: inicia medición ======
+                        response = self.controll.start_measurement()
+                        await websocket.send_json(response)
+                    
+                    case "end_measurement":
+                        # ====== EVENTO: finaliza la medición ======
+                        response = self.controll.end_measurement()
+                        await websocket.send_json(response)
+                    
+                    case _:
+                        response = {
+                            "status": "rejected", "message": "Evento no valido"
+                        }
+                        await websocket.send_json(response)
                 # Aquí puedes:
                 # - Validar datos
                 # - Guardar en base de datos

@@ -37,8 +37,8 @@ app.add_middleware(
 
 # Creación de objetos
 db = CL_DATABASE()
-ws_controller = CL_WEBSOCKET(db)
 controll = CL_CONTROLLER(db)
+ws_controller = CL_WEBSOCKET(db, controll)
 
 # Inicializar DB
 db.init_sqlite()
