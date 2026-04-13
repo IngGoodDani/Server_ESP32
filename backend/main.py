@@ -12,7 +12,7 @@ from    fastapi.responses   import  RedirectResponse, HTMLResponse, FileResponse
 from    fastapi.staticfiles import  StaticFiles
 from    controllers.websocket   import  CL_WEBSOCKET
 from    controllers.controller  import  CL_CONTROLLER
-from    DB.CL_DATABASE  import  HybridDatabase, AuxiliaresPG
+from    DB.database  import  CL_DATABASE
 from    models.measurement  import  Measurement
 
 
@@ -36,7 +36,7 @@ app.add_middleware(
 )
 
 # Creación de objetos
-db = HybridDatabase()
+db = CL_DATABASE()
 ws_controller = CL_WEBSOCKET(db)
 controll = CL_CONTROLLER(db)
 

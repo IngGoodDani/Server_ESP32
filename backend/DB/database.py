@@ -54,7 +54,7 @@ queries = {
 # ----------------------------------------------------------------------
 # Sistema híbrido SQLite + PostgreSQL
 # ----------------------------------------------------------------------
-class HybridDatabase():
+class CL_DATABASE():
     def __init__(self):
         self.sqlite_conn = None
         self.current_measurement_id = None
