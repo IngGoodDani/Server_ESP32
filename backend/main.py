@@ -44,9 +44,6 @@ controll = CL_CONTROLLER(db)
 db.init_sqlite()
 db.init_postgres()
 
-# Lista en memoria para prueba
-data_storage = []
-
 DATA_FILE = Path("mediciones.json")
 
 # Crear archivo si no existe
@@ -83,7 +80,12 @@ def serve_app():
 
 @app.get("/data")
 def get_data():
-    return {"measurements": data_storage[-20:]}  # últimos 20 datos
+    """Obtiene datos para las gráficas"""
+    try:
+        return controll.get_data()
+        
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.get("/esp32/status-measurement")
 def status_measurement():

@@ -25,6 +25,38 @@ class CL_CONTROLLER():
         except Exception as e:
             return {"status": "error", "message": str(e)}
     
+    def get_data(limit: int = 200):
+        """Obtiene datos para las gráficas"""
+        try:
+            # Primero intentar desde SQLite
+            measurements = self.db.get_recent_data(limit)
+            
+            if measurements:
+                return {
+                    "measurements": measurements,
+                    "count": len(measurements),
+                    "last_update": measurements[-1]["rowid"] if measurements else None,
+                    "source": "sqlite_cache"
+                }
+            else:
+                # Fallback a PostgreSQL
+                data = self.db.get_recent_data_from_db(limit)
+                return {
+                    "measurements": data[-limit:] if len(data) > limit else data,
+                    "count": len(data),
+                    "last_update": data[-1]["rowid"] if data else None,
+                    "source": "postgresql"
+                }
+            
+        except Exception as e:
+            print(f"?Error en /data: {str(e)}")
+            return {
+                "measurements": [],
+                "count": 0,
+                "last_update": None,
+                "error": str(e)
+            }
+    
     def start_measurement(self):
         """Inicia una nueva medición"""
         try:
