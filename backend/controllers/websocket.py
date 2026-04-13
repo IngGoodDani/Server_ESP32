@@ -3,7 +3,7 @@ from    pydantic    import BaseModel
 from    fastapi.responses import HTMLResponse
 from    models.measurement  import  Measurement
 
-class WebSocketController:
+class CL_WEBSOCKET:
 
     def __init__(self, db):
         # Lista de clientes conectados

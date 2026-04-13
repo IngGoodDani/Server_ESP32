@@ -1,6 +1,6 @@
 
 
-class Controller():
+class CL_CONTROLLER():
     def __init__(self, db):
         self.db = db
     

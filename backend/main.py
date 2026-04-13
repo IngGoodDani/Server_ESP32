@@ -10,8 +10,8 @@ from    datetime    import datetime
 from    fastapi.middleware.cors import  CORSMiddleware
 from    fastapi.responses   import  RedirectResponse, HTMLResponse, FileResponse
 from    fastapi.staticfiles import  StaticFiles
-from    controllers.websocket_controller    import  WebSocketController
-from    controllers.controller  import  Controller
+from    controllers.websocket   import  CL_WEBSOCKET
+from    controllers.controller  import  CL_CONTROLLER
 from    DB.CL_DATABASE  import  HybridDatabase, AuxiliaresPG
 from    models.measurement  import  Measurement
 
@@ -37,8 +37,8 @@ app.add_middleware(
 
 # Creación de objetos
 db = HybridDatabase()
-ws_controller = WebSocketController(db)
-controll = Controller(db)
+ws_controller = CL_WEBSOCKET(db)
+controll = CL_CONTROLLER(db)
 
 # Inicializar DB
 db.init_sqlite()
