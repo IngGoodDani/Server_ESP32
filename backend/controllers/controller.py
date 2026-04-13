@@ -25,7 +25,7 @@ class CL_CONTROLLER():
         except Exception as e:
             return {"status": "error", "message": str(e)}
     
-    def get_data(limit: int = 200):
+    def get_data(self, limit: int = 200):
         """Obtiene datos para las gráficas"""
         try:
             # Primero intentar desde SQLite
