@@ -12,11 +12,8 @@ from    fastapi.responses   import  RedirectResponse, HTMLResponse, FileResponse
 from    fastapi.staticfiles import  StaticFiles
 from    controllers.websocket   import  CL_WEBSOCKET
 from    controllers.controller  import  CL_CONTROLLER
-from    DB.database  import  CL_DATABASE
+from    DB.database import  CL_DATABASE
 from    models.measurement  import  Measurement
-
-
-current_medicion = None  # Aquí se guarda la medición activa
 
 app = FastAPI(title="Dashboard de Telemetría")
 
@@ -36,32 +33,13 @@ app.add_middleware(
 )
 
 # Creación de objetos
-db = CL_DATABASE()
-controll = CL_CONTROLLER(db)
-ws_controller = CL_WEBSOCKET(db, controll)
+obj_db = CL_DATABASE()
+obj_controll = CL_CONTROLLER(obj_db)
+obj_ws = CL_WEBSOCKET(obj_db, obj_controll)
 
 # Inicializar DB
-db.init_sqlite()
-db.init_postgres()
-
-DATA_FILE = Path("mediciones.json")
-
-# Crear archivo si no existe
-if not DATA_FILE.exists():
-    with open(DATA_FILE, "w") as f:
-        json.dump([], f)
-
-def save_to_json(data: dict):
-    # Cargar los datos actuales
-    with open(DATA_FILE, "r") as f:
-        current_data = json.load(f)
-
-    # Agregar el nuevo dato
-    current_data.append(data)
-
-    # Guardar de nuevo
-    with open(DATA_FILE, "w") as f:
-        json.dump(current_data, f, indent=4)
+obj_db.init_sqlite()
+obj_db.init_postgres()
 
 #----------------------------------------------------------
 # Metodos GET
@@ -82,7 +60,7 @@ def serve_app():
 def get_data():
     """Obtiene datos para las gráficas"""
     try:
-        return controll.get_data()
+        return obj_controll.get_data()
         
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -90,7 +68,7 @@ def get_data():
 @app.get("/esp32/status-measurement")
 def status_measurement():
     try:
-        if db.current_measurement_id is None:
+        if obj_db.current_measurement_id is None:
             return {
                 "status": "ok", "measuring": False
             }
@@ -106,7 +84,7 @@ def status_measurement():
 def list_measurements():
     """Lista todas las mediciones"""
     try:
-        return controll.list_measurements()
+        return obj_controll.list_measurements()
         
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -118,7 +96,7 @@ def list_measurements():
 def receive_data(data: Measurement):
     """Recibe datos de la ESP32 por POST"""
     try:
-        return controll.esp32_data(data)
+        return obj_controll.esp32_data(data)
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -129,7 +107,7 @@ def receive_data(data: Measurement):
 def start_measurement():
     """Inicia una nueva medición"""
     try:
-        return controll.start_measurement()
+        return obj_controll.start_measurement()
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -137,7 +115,7 @@ def start_measurement():
 def end_measurement():
     """Finaliza la medición actual"""
     try:
-        return controll.end_measurement()
+        return obj_controll.end_measurement()
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -148,7 +126,7 @@ def end_measurement():
 def cleanup_cache(days_to_keep: int = 7):
     """Limpia datos antiguos"""
     try:
-        deleted = db.cleanup_old_data(days_to_keep)
+        deleted = obj_db.cleanup_old_data(days_to_keep)
         return {"status": "ok", "deleted_count": deleted}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -157,7 +135,7 @@ def cleanup_cache(days_to_keep: int = 7):
 def cleanup_all_cache():
     """Limpia todos los datos antiguos"""
     try:
-        deleted = db.cleanup_all_data()
+        deleted = obj_db.cleanup_all_data()
         return {"status": "ok", "deleted_count": deleted}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -166,7 +144,7 @@ def cleanup_all_cache():
 def delete_measurement_sample(measurement_id: int):
     """Elimina una medicion por su ID"""
     try:
-        return controll.delete_measurement_sample(measurement_id)
+        return obj_controll.delete_measurement_sample(measurement_id)
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -175,7 +153,7 @@ def delete_measurement_sample(measurement_id: int):
 #----------------------------------------------------------
 @app.websocket("/ws/measurements")
 async def websocket_endpoint(websocket: WebSocket):
-    await ws_controller.handle_connection(websocket)
+    await obj_ws.handle_connection(websocket)
 
 #----------------------------------------------------------
 # Metodos del sistema

@@ -5,11 +5,11 @@ from    models.measurement  import  Measurement
 
 class CL_WEBSOCKET:
 
-    def __init__(self, db, controll):
+    def __init__(self, obj_db, obj_controll):
         # Lista de clientes conectados
         self.active_connections: List[WebSocket] = []
-        self.db = db
-        self.controll = controll
+        self.obj_db = obj_db
+        self.obj_controll = obj_controll
 
     async def connect(self, websocket: WebSocket):
         # Aceptar conexión del cliente
@@ -60,7 +60,7 @@ class CL_WEBSOCKET:
                     
                     case "status_measurement":
                         # ====== EVENTO: consulta de estatus ======
-                        if self.db.current_measurement_id is None:
+                        if self.obj_db.current_measurement_id is None:
                             response = {
                                 "status": "ok", "measuring": False
                             }
@@ -73,12 +73,12 @@ class CL_WEBSOCKET:
                     
                     case "start_measurement":
                         # ====== EVENTO: inicia medición ======
-                        response = self.controll.start_measurement()
+                        response = self.obj_controll.start_measurement()
                         await websocket.send_json(response)
                     
                     case "end_measurement":
                         # ====== EVENTO: finaliza la medición ======
-                        response = self.controll.end_measurement()
+                        response = self.obj_controll.end_measurement()
                         await websocket.send_json(response)
                     
                     case _:
@@ -98,7 +98,7 @@ class CL_WEBSOCKET:
 
     def handle_esp32_data(self, data: Measurement):
         try:
-            if self.db.current_measurement_id is None:
+            if self.obj_db.current_measurement_id is None:
                 return {
                     "event": "esp32_data_response",
                     "status": "rejected",
@@ -107,14 +107,14 @@ class CL_WEBSOCKET:
 
             measurements = Measurement(**data)
             #print(f"Data: {measurements}")
-            sample_index = self.db.save_measurement(measurements)
+            sample_index = self.obj_db.save_measurement(measurements)
 
             return {
                 "event": "esp32_data_response",
                 "status": "ok",
-                "measurement_id": self.db.current_measurement_id,
+                "measurement_id": self.obj_db.current_measurement_id,
                 "sample_index": sample_index,
-                "total_samples": self.db.measurement_sample_counter
+                "total_samples": self.obj_db.measurement_sample_counter
             }
 
         except Exception as e:
@@ -129,7 +129,7 @@ class CL_WEBSOCKET:
             return {
                 "event": "status_measurement_response",
                 "status": "ok",
-                "measuring": self.db.current_measurement_id is not None
+                "measuring": self.obj_db.current_measurement_id is not None
             }
 
         except Exception as e:

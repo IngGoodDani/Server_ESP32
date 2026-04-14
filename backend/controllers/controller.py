@@ -1,25 +1,25 @@
 
 
 class CL_CONTROLLER():
-    def __init__(self, db):
-        self.db = db
+    def __init__(self, obj_db):
+        self.obj_db = obj_db
     
     def esp32_data(self, data):
         """Recibe datos de la ESP32"""
         try:
-            if self.db.current_measurement_id is None:
+            if self.obj_db.current_measurement_id is None:
                 return {
                     "status": "rejected",
                     "message": "No hay una medición activa. Los datos han sido ignorados."
                 }
             
-            sample_index = self.db.save_measurement(data)
+            sample_index = self.obj_db.save_measurement(data)
             
             return {
                 "status": "ok",
-                "measurement_id": self.db.current_measurement_id,
+                "measurement_id": self.obj_db.current_measurement_id,
                 "sample_index": sample_index,
-                "total_samples": self.db.measurement_sample_counter
+                "total_samples": self.obj_db.measurement_sample_counter
             }
             
         except Exception as e:
@@ -29,7 +29,7 @@ class CL_CONTROLLER():
         """Obtiene datos para las gráficas"""
         try:
             # Primero intentar desde SQLite
-            measurements = self.db.get_recent_data(limit)
+            measurements = self.obj_db.get_recent_data(limit)
             
             if measurements:
                 return {
@@ -40,7 +40,7 @@ class CL_CONTROLLER():
                 }
             else:
                 # Fallback a PostgreSQL
-                data = self.db.get_recent_data_from_db(limit)
+                data = self.obj_db.get_recent_data_from_db(limit)
                 return {
                     "measurements": data[-limit:] if len(data) > limit else data,
                     "count": len(data),
@@ -60,8 +60,8 @@ class CL_CONTROLLER():
     def start_measurement(self):
         """Inicia una nueva medición"""
         try:
-            if self.db.current_measurement_id is None:
-                measurement_id = self.db.start_measurement()
+            if self.obj_db.current_measurement_id is None:
+                measurement_id = self.obj_db.start_measurement()
                 return {"status": "ok", "measurement_id": measurement_id}
             else:
                 return {
@@ -74,19 +74,19 @@ class CL_CONTROLLER():
     def end_measurement(self):
         """Finaliza la medición actual"""
         try:
-            if self.db.current_measurement_id is None:
+            if self.obj_db.current_measurement_id is None:
                 print("Aviso: Intento de cerrar medición, pero no hay ninguna activa.")
                 return {
                     "status": "rejected",
                     "message": "No hay una medición activa."
                 }
             
-            self.db.sync_all_data()
+            self.obj_db.sync_all_data()
             
-            measurement_id = self.db.current_measurement_id
-            total_samples = self.db.measurement_sample_counter
+            measurement_id = self.obj_db.current_measurement_id
+            total_samples = self.obj_db.measurement_sample_counter
             
-            self.db.end_measurement()
+            self.obj_db.end_measurement()
             
             return {
                 "status": "measurement_closed",
@@ -103,7 +103,7 @@ class CL_CONTROLLER():
             # El parámetro de la consulta debe ser una tupla: (measurement_id,)
             parametro = (measurement_id,)
             
-            with self.db.get_postgres_cursor() as cur:
+            with self.obj_db.get_postgres_cursor() as cur:
                 # 1. Eliminar de VOLTAJES
                 delete_voltajes = """
                     DELETE FROM VOLTAJES
@@ -132,7 +132,7 @@ class CL_CONTROLLER():
                 """
                 cur.execute(delete_medicion, parametro)
                 
-                self.db.current_measurement_id = None
+                self.obj_db.current_measurement_id = None
                 
             return {
                 "status": "ok",
@@ -144,7 +144,7 @@ class CL_CONTROLLER():
     def list_measurements(self):
         """Lista todas las mediciones"""
         try:
-            return self.db.list_measurements()
+            return self.obj_db.list_measurements()
             
         except Exception as e:
             return {"status": "error", "message": str(e)}
