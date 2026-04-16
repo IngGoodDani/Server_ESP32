@@ -15,12 +15,12 @@ class CL_WEBSOCKET:
         # Aceptar conexión del cliente
         await websocket.accept()
         self.active_connections.append(websocket)
-        print("Cliente conectado")
+        #print("Cliente conectado")
 
     def disconnect(self, websocket: WebSocket):
         # Remover cliente de la lista
         self.active_connections.remove(websocket)
-        print("Cliente desconectado")
+        #print("Cliente desconectado")
 
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         # Enviar mensaje a un solo cliente
@@ -62,12 +62,12 @@ class CL_WEBSOCKET:
                         # ====== EVENTO: consulta de estatus ======
                         if self.obj_db.current_measurement_id is None:
                             response = {
-                                "status": "ok", "measuring": False
+                                "event": "reponse_status_measurement", "measuring": False
                             }
                             await websocket.send_json(response)
                         else:
                             response = {
-                                "status": "ok", "measuring": True
+                                "event": "reponse_status_measurement", "measuring": True
                             }
                             await websocket.send_json(response)
                     

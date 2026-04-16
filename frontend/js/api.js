@@ -4,27 +4,43 @@ import { API_URL, WINDOW_SIZE } from './constants.js';
 import { getState, setState } from './state.js';
 import { updateGraphs, updateRealtimeDisplay, updateToggleRecordingStatus, safeSetTextContent, renderMeasurementsList, displayHistoricalWindow, updateSystemStatusDisplay } from './ui.js';
 
+let socket = null;
+let reconnectTimer = null;
+let isConnecting = false;
+
 // Función principal de fetching WebSocket
 export async function ws_fetchData() {
     try {
+        if (socket || isConnecting) return;
+        
+        isConnecting = true;
+        
         const { wsIsConnected, reconnectInterval } = getState();
-        const socket = new WebSocket("ws://localhost:8000/ws/measurements");
+        socket = new WebSocket("ws://localhost:8000/ws/measurements");
         
         socket.onopen = () => {
             console.log("Ws conectado");
-            wsIsConnected = true;
-            setState({ wsIsConnected });
+            setState({ wsIsConnected: true });
+            isConnecting = false;
             
-            /*socket.send(JSON.stringify({
+            if (reconnectTimer) {
+                clearInterval(reconnectTimer);
+                reconnectTimer = null;
+            }
+            socket.send(JSON.stringify({
                 event: "status_measurement"
-            }));*/
+            }));
         };
         
         socket.onclose = () => {
             console.log("Ws desconectado");
-            wsIsConnected = false;
-            setState({ wsIsConnected });
+            setState({ wsIsConnected: false });
             setInterval(ws_fetchData, reconnectInterval);
+            
+            socket = null;
+            isConnecting = false;
+        
+            startReconnect();
         };
         
         socket.onmessage = (event) => {
@@ -39,16 +55,24 @@ export async function ws_fetchData() {
         };
     } catch (error) {
     console.error('Error en WS fetchData:', error);
-    //await fetchTraditionalData(); // fallback
   }
+}
+
+function startReconnect() {
+    if (reconnectTimer) return;
+
+    reconnectTimer = setInterval(() => {
+        console.log("Reintentando conexión WS...");
+        ws_fetchData();
+    }, 3000);
 }
 
 function handleWSResponse(data) {
     if (data.event === "new_measurement") {
-        const newData = data.data;
-        const { MAX_POINTS } = getSate();
+        const newData = Array.isArray(data.data) ? data.data : [data.data];
+        const { MAX_POINTS, lastSampleId } = getState();
         const currentData = getState().data;
-        newData.forEach(d => currentDatapush(d));
+        newData.forEach(d => currentData.push(d));
         
         if (currentData.length > MAX_POINTS) {
             currentData.splice(0, currentData.length - MAX_POINTS);
@@ -56,13 +80,22 @@ function handleWSResponse(data) {
         
         setState({ data: currentData });
         
+        const realtimeData = newData[newData.length - 1] || currentData[currentData.length - 1];
+        setState({ realtimeData });
         
+        updateGraphs();
+        if (getState().activeTab === 'realtime') updateRealtimeDisplay();
+        console.log(`📊 ${newData.length} nuevas muestras (última: ${lastSampleId})`);
     }
-
-    reconnectInterval = setInterval(() => {
-        console.log('🔄 Intentando reconectar WebSocket...');
-        connectWebSocket();
-    }, 3000);
+    
+    if (data.event === "reponse_status_measurement") {
+        const { isRecording } = getState();
+        let changeStatus = false;
+        
+        if (isRecording !== data.measuring) changeStatus = true;
+        setState({ isRecording: data.measuring });
+        if (changeStatus) updateToggleRecordingStatus();
+    }
 }
 
 // Función principal de fetching (llamada periódica)
