@@ -57,6 +57,29 @@ class CL_CONTROLLER():
                 "error": str(e)
             }
     
+    def get_measurement_data_paginated(self,
+        measurement_id: int,
+        page: int = 1,
+        page_size: int = 1000,
+        use_cache: bool = True):
+        """Obtiene datos de medición paginados"""
+        try:
+            # Primero intentar desde SQLite
+            if use_cache:
+                result = self.obj_db.get_paginated_data(measurement_id, page, page_size)
+                
+                if result.get("status") == "ok" and result["measurements"]:
+                    result["source"] = "sqlite_cache"
+                    return result
+            
+            # Si no hay datos en cache, obtener de PostgreSQL
+            measurements = self.obj_db.get_measurement_from_postgres(measurement_id, page, page_size)
+            
+            return measurements
+            
+        except Exception as e:
+            return {"status": "error", "message": str(e), "measurements": []}
+    
     def start_measurement(self):
         """Inicia una nueva medición"""
         try:

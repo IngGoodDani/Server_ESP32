@@ -89,6 +89,18 @@ def list_measurements():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/data/measurement/{measurement_id}")
+def get_measurement_data_paginated(
+    measurement_id: int,
+    page: int = 1,
+    page_size: int = 1000,
+    use_cache: bool = True):
+    """Obtiene datos de medición paginados"""
+    try:
+        return obj_controll.get_measurement_data_paginated(measurement_id, page, page_size, use_cache)
+    except Exception as e:
+        return {"status": "error", "message": str(e), "measurements": []}
+
 #----------------------------------------------------------
 # Metodos POST
 #----------------------------------------------------------

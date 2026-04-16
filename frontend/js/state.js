@@ -34,6 +34,7 @@ const state = {
   // Streaming
   isStreaming: false,
   streamInterval: null,
+  reconnectInterval : 1000,
 
   // Paginación
   currentPage: 1,
@@ -56,6 +57,7 @@ const state = {
 
   // Banderas
   chargeHybridSystem: false,
+  wsIsConnected: false,
   
   // Graficas
   MAX_POINTS: 100,

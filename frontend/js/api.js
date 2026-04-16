@@ -4,8 +4,69 @@ import { API_URL, WINDOW_SIZE } from './constants.js';
 import { getState, setState } from './state.js';
 import { updateGraphs, updateRealtimeDisplay, updateToggleRecordingStatus, safeSetTextContent, renderMeasurementsList, displayHistoricalWindow, updateSystemStatusDisplay } from './ui.js';
 
+// Función principal de fetching WebSocket
+export async function ws_fetchData() {
+    try {
+        const { wsIsConnected, reconnectInterval } = getState();
+        const socket = new WebSocket("ws://localhost:8000/ws/measurements");
+        
+        socket.onopen = () => {
+            console.log("Ws conectado");
+            wsIsConnected = true;
+            setState({ wsIsConnected });
+            
+            /*socket.send(JSON.stringify({
+                event: "status_measurement"
+            }));*/
+        };
+        
+        socket.onclose = () => {
+            console.log("Ws desconectado");
+            wsIsConnected = false;
+            setState({ wsIsConnected });
+            setInterval(ws_fetchData, reconnectInterval);
+        };
+        
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log("Mensaje: ", data);
+            handleWSResponse(data);
+        };
+        
+        socket.onerror = (error) => {
+            console.log("Ws error: ", error);
+            socket.close();
+        };
+    } catch (error) {
+    console.error('Error en WS fetchData:', error);
+    //await fetchTraditionalData(); // fallback
+  }
+}
+
+function handleWSResponse(data) {
+    if (data.event === "new_measurement") {
+        const newData = data.data;
+        const { MAX_POINTS } = getSate();
+        const currentData = getState().data;
+        newData.forEach(d => currentDatapush(d));
+        
+        if (currentData.length > MAX_POINTS) {
+            currentData.splice(0, currentData.length - MAX_POINTS);
+        }
+        
+        setState({ data: currentData });
+        
+        
+    }
+
+    reconnectInterval = setInterval(() => {
+        console.log('🔄 Intentando reconectar WebSocket...');
+        connectWebSocket();
+    }, 3000);
+}
+
 // Función principal de fetching (llamada periódica)
-export async function fetchData() {
+/*export async function fetchData() {
   try {
     const { isRecording, systemStatus } = getState();
     let changeStatus = false;
@@ -105,7 +166,7 @@ export async function fetchTraditionalData() {
     console.error('❌ Error en fetch tradicional:', error);
   }
 }
-
+*/
 export async function checkHybridSystemStatus() {
   try {
     const response = await fetch(`${API_URL}/system/status`);
