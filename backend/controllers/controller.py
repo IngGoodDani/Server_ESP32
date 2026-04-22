@@ -1,4 +1,5 @@
-
+samplingTime: int = 1
+timeUnit: str = "s"
 
 class CL_CONTROLLER():
     def __init__(self, obj_db):
@@ -125,7 +126,9 @@ class CL_CONTROLLER():
     
     def put_sampling_tieme(self, samplingTime, timeUnit):
         try:
-            
+            self.samplingTime = samplingTime
+            self.timeUnit = timeUnit
+            return {"status": "ok", "message": "sampleTime_updated"}
         except Exception as e:
             return {"status": "error", "message": str(e)}
     

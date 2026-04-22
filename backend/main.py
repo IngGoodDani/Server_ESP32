@@ -131,11 +131,11 @@ def end_measurement():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.put("measurement/samplingTime")
+@app.put("/measurement/samplingTime")
 def put_sampling_tieme(samplingTime: int, timeUnit: str):
     """Actualiza el tiempo de muestreo"""
     try:
-        return obj_db.put_sampling_tieme(samplingTime, timeUnit)
+        return obj_controll.put_sampling_tieme(samplingTime, timeUnit)
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
