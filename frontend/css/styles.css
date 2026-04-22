@@ -53,6 +53,14 @@ body {
   align-items: center;
 }
 
+.controls-grid select{
+  padding: 4px;
+  border-radius: 4px;
+  border: 1px solid #404040;
+  background: #1a1a1a;
+  color: #e5e7eb;
+}
+
 .prediction-control {
   display: flex;
   align-items: center;
