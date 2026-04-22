@@ -435,6 +435,7 @@ function resumeStreaming() {
 }
 
 function updateMeasureTime() {
-  const horizon = parseInt(event.target.value);
-  console.log(`Escala de tiempo actualizada: ${horizon} `);
+    const timeUnit = document.getElementById('timeUnit');
+    const samplingTime = document.getElementById('samplingTime');
+    console.log(`Escala de tiempo actualizada: ${samplingTime.value} ${timeUnit.value} `);
 }

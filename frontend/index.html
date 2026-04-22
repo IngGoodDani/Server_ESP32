@@ -47,17 +47,17 @@
         <h2>Configuración</h2>
         
         <div class="time-control">
-          <label>Tiempo de muestreo </label>
+          <label for="timeUnit">Tiempo de muestreo </label>
           <select id="timeUnit">
             <option value="ms">Milisegundos: ms</option>
-            <option value="s">Segundos: s</option>
+            <option value="s" selected>Segundos: s</option>
             <option value="min">Minutos: min</option>
             <option value="h">Horas: h</option>
           </select>
-          <input type="range" id="samplingTime" min="10" max="200" value="100" step="10">
+          <input type="range" id="samplingTime" min="1" max="60" value="1" step="1">
           <span class="value">
-            <span id="timeValue">100</span>
-            <span id="timeLabel">ms</span>
+            <span id="timeValue">1</span>
+            <span id="timeLabel">s</span>
           </span>
           <button class="btn-aplicar" id="btnSetSampling">Aplicar</button>
         </div>
