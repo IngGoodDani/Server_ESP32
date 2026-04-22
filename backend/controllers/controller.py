@@ -123,6 +123,12 @@ class CL_CONTROLLER():
         except Exception as e:
             return {"status": "error", "message": str(e)}
     
+    def put_sampling_tieme(self, samplingTime, timeUnit):
+        try:
+            
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+    
     def delete_measurement_sample(self, measurement_id: int):
         """Elimina una medicion por su ID"""
         try:

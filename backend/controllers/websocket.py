@@ -40,11 +40,10 @@ class CL_WEBSOCKET:
             while True:
                 # Esperar datos del cliente
                 json_response = await websocket.receive_json()
-                print(f"Datos recibidos: {json_response}")
                 
                 event = json_response.get("event")
                 data = json_response.get("data")
-                print(f"Event: {event}")
+                print(f"\033[32mEVENT\033[0m:    {event}")
 
                 match event:
                     case "esp32_data":
