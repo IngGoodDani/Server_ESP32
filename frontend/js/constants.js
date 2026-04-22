@@ -53,3 +53,10 @@ export const genericOptions = {
     }
   }
 };
+
+export const scales = {
+    ms:  { min: 1, max: 1000, step: 1 },
+    s:   { min: 1, max: 60, step: 1 },
+    min: { min: 1, max: 60, step: 1 },
+    h:   { min: 1, max: 24, step: 1 }
+};

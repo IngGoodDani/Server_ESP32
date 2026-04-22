@@ -1,6 +1,6 @@
 // ui.js - Manejo de la interfaz de usuario (eventos, actualizaciones DOM)
 
-import { variables, colors , WINDOW_SIZE } from './constants.js';
+import { variables, colors, WINDOW_SIZE, scales } from './constants.js';
 import { getState, setState } from './state.js';
 import { toggleRecording, loadMeasurementsList, clearAllHistory, loadSelectedMeasurementData } from './api.js';
 import { updateSingleGraph, updateComparisonGraph, updateGraphs } from './graphs.js';
@@ -29,6 +29,7 @@ export function initEventListeners() {
   document.getElementById('btnSetSampling').addEventListener('click', updateMeasureTime);
   
   document.getElementById('varSelect').addEventListener('change', updateSingleGraph);
+  document.getElementById('timeUnit').addEventListener('change', updateUnit);
   document.getElementById('samplingTime').addEventListener('input', updateSamplingTime);
   document.getElementById('sampScaleTime').addEventListener('input', updateSampScaleTime);
 
@@ -390,12 +391,30 @@ function updateSystemStatusDisplay() {
 }
 
 function updateSamplingTime(event) {
-  const horizon = parseInt(event.target.value);
-  setState({ samplingTime: horizon });
-  safeSetTextContent('timeValue', horizon);
-  //console.log(`Tiempo de muestreo actualizado: ${horizon} `);
+    const horizon = parseInt(event.target.value, 10);
+    const timeUnit = document.getElementById('timeUnit');
+    setState({ samplingTime: horizon });
+    safeSetTextContent('timeValue', horizon);
+    safeSetTextContent('timeLabel', timeUnit.value);
+    //console.log(`Tiempo de muestreo actualizado: ${horizon} `);
 }
 
+function updateUnit() {
+    const timeUnit = document.getElementById('timeUnit');
+    const samplingTime = document.getElementById('samplingTime');
+    const config = scales[timeUnit.value];
+    samplingTime.min = config.min;
+    samplingTime.max = config.max;
+    samplingTime.step = config.step;
+
+    if (+samplingTime.value < config.min) samplingTime.value = config.min;
+    if (+samplingTime.value > config.max) samplingTime.value = config.max;
+
+    safeSetTextContent('timeLabel', timeUnit.value);
+    safeSetTextContent('timeValue', samplingTime.value);
+    setState({ timeUnit: timeUnit.value });
+}
+  
 function updateSampScaleTime(event) {
   const horizon = parseInt(event.target.value);
   setState({ MAX_POINTS: horizon });
