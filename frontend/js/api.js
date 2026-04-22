@@ -78,10 +78,10 @@ function handleWSResponse(data) {
             currentData.splice(0, currentData.length - MAX_POINTS);
         }
         
-        setState({ data: currentData });
-        
         const realtimeData = newData[newData.length - 1] || currentData[currentData.length - 1];
-        setState({ realtimeData });
+        setState({ data: currentData, realtimeData });
+        
+        console.log("Total datos:", getState().data.length);
         
         updateGraphs();
         if (getState().activeTab === 'realtime') updateRealtimeDisplay();
