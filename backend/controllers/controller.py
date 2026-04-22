@@ -33,6 +33,7 @@ class CL_CONTROLLER():
             
             if measurements:
                 return {
+                    "event": "new_measurement",
                     "measurements": measurements,
                     "count": len(measurements),
                     "last_update": measurements[-1]["rowid"] if measurements else None,
@@ -42,6 +43,7 @@ class CL_CONTROLLER():
                 # Fallback a PostgreSQL
                 data = self.obj_db.get_recent_data_from_db(limit)
                 return {
+                    "event": "new_measurement",
                     "measurements": data[-limit:] if len(data) > limit else data,
                     "count": len(data),
                     "last_update": data[-1]["rowid"] if data else None,
@@ -51,6 +53,7 @@ class CL_CONTROLLER():
         except Exception as e:
             print(f"?Error en /data: {str(e)}")
             return {
+                "event": "new_measurement",
                 "measurements": [],
                 "count": 0,
                 "last_update": None,

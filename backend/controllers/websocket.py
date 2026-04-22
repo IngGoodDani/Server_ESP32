@@ -52,11 +52,8 @@ class CL_WEBSOCKET:
                         response = self.handle_esp32_data(data)
                         await websocket.send_json(response)
     
-                        # Opcional: mandar a todos (dashboard)
-                        await self.broadcast({
-                            "event": "new_measurement",
-                            "data": data
-                        })
+                        measurement = self.obj_controll.get_data()
+                        await self.broadcast(measurement)
                     
                     case "status_measurement":
                         # ====== EVENTO: consulta de estatus ======
