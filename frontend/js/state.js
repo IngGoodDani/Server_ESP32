@@ -63,7 +63,8 @@ const state = {
   MAX_POINTS: 100,
   
   // Medición
-  samplingTime: 20
+  samplingTime: 1,
+  timeUnit: "s"
 };
 
 // Getters y setters (opcional, se puede acceder directamente)

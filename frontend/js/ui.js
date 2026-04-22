@@ -2,7 +2,7 @@
 
 import { variables, colors, WINDOW_SIZE, scales } from './constants.js';
 import { getState, setState } from './state.js';
-import { toggleRecording, loadMeasurementsList, clearAllHistory, loadSelectedMeasurementData } from './api.js';
+import { toggleRecording, loadMeasurementsList, clearAllHistory, loadSelectedMeasurementData, put_sample_time } from './api.js';
 import { updateSingleGraph, updateComparisonGraph, updateGraphs } from './graphs.js';
 import { displayHistoricalWindow } from './history.js';
 import { togglePredictions, updatePredictionHorizon, fetchPredictions } from './ai.js';
@@ -393,7 +393,10 @@ function updateSystemStatusDisplay() {
 function updateSamplingTime(event) {
     const horizon = parseInt(event.target.value, 10);
     const timeUnit = document.getElementById('timeUnit');
-    setState({ samplingTime: horizon });
+    setState({
+        samplingTime: horizon,
+        timeUnit: timeUnit.value
+    });
     safeSetTextContent('timeValue', horizon);
     safeSetTextContent('timeLabel', timeUnit.value);
     //console.log(`Tiempo de muestreo actualizado: ${horizon} `);
@@ -412,7 +415,10 @@ function updateUnit() {
 
     safeSetTextContent('timeLabel', timeUnit.value);
     safeSetTextContent('timeValue', samplingTime.value);
-    setState({ timeUnit: timeUnit.value });
+    setState({ 
+        timeUnit: timeUnit.value,
+        samplingTime: samplingTime.value
+    });
 }
   
 function updateSampScaleTime(event) {
@@ -437,5 +443,6 @@ function resumeStreaming() {
 function updateMeasureTime() {
     const timeUnit = document.getElementById('timeUnit');
     const samplingTime = document.getElementById('samplingTime');
-    console.log(`Escala de tiempo actualizada: ${samplingTime.value} ${timeUnit.value} `);
+    put_sample_time(samplingTime.value, timeUnit.value);
+    //console.log(`Escala de tiempo actualizada: ${samplingTime.value} ${timeUnit.value} `);
 }

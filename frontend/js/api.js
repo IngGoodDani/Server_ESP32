@@ -1,4 +1,4 @@
-// api.js - Funciones de comunicación con el backend
+// api.js - Funciones de comunicaci贸n con el backend
 
 import { API_URL, WINDOW_SIZE } from './constants.js';
 import { getState, setState } from './state.js';
@@ -8,7 +8,7 @@ let socket = null;
 let reconnectTimer = null;
 let isConnecting = false;
 
-// Función principal de fetching WebSocket
+// Funci贸n principal de fetching WebSocket
 export async function ws_fetchData() {
     try {
         if (socket || isConnecting) return;
@@ -62,7 +62,7 @@ function startReconnect() {
     if (reconnectTimer) return;
 
     reconnectTimer = setInterval(() => {
-        console.log("Reintentando conexión WS...");
+        console.log("Reintentando conexi贸n WS...");
         ws_fetchData();
     }, 3000);
 }
@@ -85,7 +85,7 @@ function handleWSResponse(data) {
         
         updateGraphs();
         if (getState().activeTab === 'realtime') updateRealtimeDisplay();
-        console.log(`📊 ${newData.length} nuevas muestras (última: ${lastSampleId})`);
+        console.log(`馃搳 ${newData.length} nuevas muestras (煤ltima: ${lastSampleId})`);
     }
     
     if (data.event === "reponse_status_measurement") {
@@ -98,7 +98,7 @@ function handleWSResponse(data) {
     }
 }
 
-// Función principal de fetching (llamada periódica)
+// Funci贸n principal de fetching (llamada peri贸dica)
 /*export async function fetchData() {
   try {
     const { isRecording, systemStatus } = getState();
@@ -134,7 +134,7 @@ export async function fetchHybridData() {
 
     const json = await response.json();
     if (json.error) {
-      console.warn('⚠️ Error en respuesta streaming:', json.error);
+      console.warn('鈿狅笍 Error en respuesta streaming:', json.error);
       return;
     }
 
@@ -153,7 +153,7 @@ export async function fetchHybridData() {
         };
       });
 
-      // Mantener solo los últimos MAX_POINTS
+      // Mantener solo los 煤ltimos MAX_POINTS
       const { MAX_POINTS } = getState();
       newData.forEach(d => currentData.push(d));
       if (currentData.length > MAX_POINTS) {
@@ -166,10 +166,10 @@ export async function fetchHybridData() {
 
       updateGraphs();
       if (getState().activeTab === 'realtime') updateRealtimeDisplay();
-      console.log(`📊 ${newData.length} nuevas muestras (última: ${lastSampleId})`);
+      console.log(`馃搳 ${newData.length} nuevas muestras (煤ltima: ${lastSampleId})`);
     }
   } catch (error) {
-    console.error('❌ Error en streaming híbrido:', error);
+    console.error('鉂?Error en streaming h铆brido:', error);
     throw error;
   }
 }
@@ -196,7 +196,7 @@ export async function fetchTraditionalData() {
       if (getState().activeTab === 'realtime') updateRealtimeDisplay();
     }
   } catch (error) {
-    console.error('❌ Error en fetch tradicional:', error);
+    console.error('鉂?Error en fetch tradicional:', error);
   }
 }
 */
@@ -214,21 +214,21 @@ export async function checkHybridSystemStatus() {
       };
       setState({ systemStatus });
 
-      console.log('✅ Sistema híbrido funcionando');
-      console.log('💾 Cache SQLite:', systemStatus.cacheSamples, 'muestras');
-      console.log('🗄️ PostgreSQL:', systemStatus.postgresSamples, 'muestras');
+      console.log('鉁?Sistema h铆brido funcionando');
+      console.log('馃捑 Cache SQLite:', systemStatus.cacheSamples, 'muestras');
+      console.log('馃梽锔?PostgreSQL:', systemStatus.postgresSamples, 'muestras');
 
       updateSystemStatusDisplay();
     }
   } catch (error) {
-    console.log('⚠️ Sistema híbrido no disponible, usando modo tradicional');
+    console.log('鈿狅笍 Sistema h铆brido no disponible, usando modo tradicional');
     setState({ systemStatus: { ...getState().systemStatus, hybridEnabled: false } });
   }
 }
 
 export async function loadMeasurementsList() {
   try {
-    console.log('📋 Cargando lista de mediciones...');
+    console.log('馃搵 Cargando lista de mediciones...');
     const container = document.getElementById('measurementsList');
     if (!container) return;
 
@@ -241,7 +241,7 @@ export async function loadMeasurementsList() {
 
     let response, json;
 
-    // Intento con resumen híbrido (comentado por ahora)
+    // Intento con resumen h铆brido (comentado por ahora)
     // if (systemStatus.hybridEnabled) { ... }
 
     response = await fetch(`${API_URL}/measurements/list`);
@@ -254,17 +254,17 @@ export async function loadMeasurementsList() {
     if (json.status === 'ok' && json.measurements && json.measurements.length > 0) {
       setState({ allMeasurements: json.measurements });
       renderMeasurementsList();
-      console.log(`✅ ${json.measurements.length} mediciones cargadas`);
+      console.log(`鉁?${json.measurements.length} mediciones cargadas`);
     } else {
       container.innerHTML = `
         <div class="no-measurements">
-          <p>No hay mediciones guardadas aún</p>
-          <p style="font-size: 12px; margin-top: 10px;">Inicia una grabación para crear mediciones</p>
+          <p>No hay mediciones guardadas a煤n</p>
+          <p style="font-size: 12px; margin-top: 10px;">Inicia una grabaci贸n para crear mediciones</p>
         </div>
       `;
     }
   } catch (error) {
-    console.error('❌ Error cargando mediciones:', error);
+    console.error('鉂?Error cargando mediciones:', error);
     const container = document.getElementById('measurementsList');
     if (container) {
       container.innerHTML = `
@@ -280,18 +280,18 @@ export async function loadMeasurementsList() {
 export async function loadSelectedMeasurementData() {
   const { selectedMeasurementId, selectedMeasurementNumSamples } = getState();
   if (!selectedMeasurementId) {
-    alert('Por favor, selecciona una medición primero');
+    alert('Por favor, selecciona una medici贸n primero');
     return;
   }
 
   try {
-    console.log(`📊 Cargando datos de medición #${selectedMeasurementId}...`);
+    console.log(`馃搳 Cargando datos de medici贸n #${selectedMeasurementId}...`);
 
     const container = document.getElementById('camViewGrid');
     container.innerHTML = `
       <div class="loading-spinner" style="grid-column: 1 / -1;">
         <div class="spinner"></div>
-        <p>Cargando datos de la medición...</p>
+        <p>Cargando datos de la medici贸n...</p>
       </div>
     `;
 
@@ -317,23 +317,23 @@ export async function loadSelectedMeasurementData() {
       safeSetTextContent('timelineTotal', selectedMeasurementData.length);
       safeSetTextContent('windowSize', Math.min(WINDOW_SIZE, selectedMeasurementData.length));
 
-      // Limpiar gráficas anteriores
+      // Limpiar gr谩ficas anteriores
       setState({ camCharts: {} });
 
       const currentSliderPosition = maxPosition;
       setState({ currentSliderPosition });
       displayHistoricalWindow(currentSliderPosition);
 
-      console.log(`✅ ${selectedMeasurementData.length} muestras cargadas`);
+      console.log(`鉁?${selectedMeasurementData.length} muestras cargadas`);
     } else {
       throw new Error(json.message || 'Error al cargar datos');
     }
   } catch (error) {
-    console.error('❌ Error cargando datos de medición:', error);
+    console.error('鉂?Error cargando datos de medici贸n:', error);
     const container = document.getElementById('camViewGrid');
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
-        <div class="empty-state-icon">⚠️</div>
+        <div class="empty-state-icon">鈿狅笍</div>
         <h3>Error al cargar datos</h3>
         <p>${error.message}</p>
       </div>
@@ -364,10 +364,10 @@ export async function toggleRecording() {
 
     const json = await response.json();
     if (json.status === 'ok') {
-      console.log('✅ Sistema de medición funcionando');
+      console.log('鉁?Sistema de medici贸n funcionando');
     }
   } catch (error) {
-    console.log('⚠️ Sistema de medición no disponible');
+    console.log('鈿狅笍 Sistema de medici贸n no disponible');
     updateToggleRecordingStatus();
   }
 }
@@ -375,15 +375,15 @@ export async function toggleRecording() {
 export async function clearAllHistory() {
   const { selectedMeasurementId } = getState();
   if (!selectedMeasurementId) {
-    alert('Por favor, selecciona una medición primero');
+    alert('Por favor, selecciona una medici贸n primero');
     return;
   }
 
-  if (!confirm('¿Estás seguro de que quieres eliminar la medición: ' + selectedMeasurementId + ' de las grabaciones?\nEsta acción no se puede deshacer.')) {
+  if (!confirm('驴Est谩s seguro de que quieres eliminar la medici贸n: ' + selectedMeasurementId + ' de las grabaciones?\nEsta acci贸n no se puede deshacer.')) {
     return;
   }
 
-  console.log('🗑️ Solicitando eliminación de ' + selectedMeasurementId + ' de las grabaciones...');
+  console.log('馃棏锔?Solicitando eliminaci贸n de ' + selectedMeasurementId + ' de las grabaciones...');
 
   try {
     const deleteResponse = await fetch(`${API_URL}/measurements/${selectedMeasurementId}`, {
@@ -392,11 +392,11 @@ export async function clearAllHistory() {
     const deleteResult = await deleteResponse.json();
 
     if (deleteResult.status === 'ok') {
-      alert('Medición eliminada');
+      alert('Medici贸n eliminada');
     }
   } catch (error) {
-    alert('Error al eliminar la medición');
-    console.error(`Error eliminando medición ${selectedMeasurementId}:`, error);
+    alert('Error al eliminar la medici贸n');
+    console.error(`Error eliminando medici贸n ${selectedMeasurementId}:`, error);
     return;
   }
 
@@ -408,7 +408,7 @@ export async function clearAllHistory() {
     camCharts: {}
   });
 
-  // Ocultar controles y gráficas
+  // Ocultar controles y gr谩ficas
   const details = document.getElementById('measurementDetails');
   if (details) details.style.display = 'none';
 
@@ -419,13 +419,30 @@ export async function clearAllHistory() {
   if (container) {
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
-        <div class="empty-state-icon">📊</div>
-        <h3>Selecciona una medición</h3>
-        <p>Selecciona una medición de la lista para ver sus datos</p>
+        <div class="empty-state-icon">馃搳</div>
+        <h3>Selecciona una medici贸n</h3>
+        <p>Selecciona una medici贸n de la lista para ver sus datos</p>
       </div>
     `;
   }
 
   // Recargar lista
   loadMeasurementsList();
+}
+
+export async function put_sample_time(samplingTime, timeUnit) {
+    try {
+        const { samplingTime, timeUnit } = getState();
+        const response = await fetch(`${API_URL}/measurement/samplingTime?samplingTime=${samplingTime}&timeUnit=${timeUnit}`, { method: 'PUT' });
+        const json_response = await response.json();
+        
+        if (json_response.status === 'ok') {
+            alert('Tiempo de muestreo actualizado\nTiempo: '+samplingTime+' '+timeUnit);
+        }
+        return;
+    } catch (error) {
+        alert('Error al actualizar el tiempo de muestreo');
+        console.error(`Error actualizando: `, error);
+        return;
+    }
 }
