@@ -5,6 +5,7 @@ backend/controllers/__pycache__/
 backend/models/__pycache__/
 backend/venv/
 backend/backend/
+backend/utils/
 peruanada/
 prueba_coneccion_esp/
 
