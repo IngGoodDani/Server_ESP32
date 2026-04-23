@@ -101,6 +101,15 @@ def get_measurement_data_paginated(
     except Exception as e:
         return {"status": "error", "message": str(e), "measurements": []}
 
+@app.get("/measurement/samplingTime")
+def get_sampling_time():
+    """Obtiene el tiempo de muestreo"""
+    try:
+        return obj_controll.get_sampling_time()
+        
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    
 #----------------------------------------------------------
 # Metodos POST
 #----------------------------------------------------------
@@ -132,10 +141,10 @@ def end_measurement():
         return {"status": "error", "message": str(e)}
 
 @app.put("/measurement/samplingTime")
-def put_sampling_tieme(samplingTime: int, timeUnit: str):
+def put_sampling_time(samplingTime: int, timeUnit: str):
     """Actualiza el tiempo de muestreo"""
     try:
-        return obj_controll.put_sampling_tieme(samplingTime, timeUnit)
+        return obj_controll.put_sampling_time(samplingTime, timeUnit)
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

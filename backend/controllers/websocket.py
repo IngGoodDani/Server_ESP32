@@ -77,6 +77,10 @@ class CL_WEBSOCKET:
                         response = self.obj_controll.end_measurement()
                         await websocket.send_json(response)
                     
+                    case "get_sample_time":
+                        # ====== EVENTO: Consulta teimpo de medicion ======
+                        response = self.obj_controll.get_sampl_time()
+                    
                     case _:
                         response = {
                             "status": "rejected", "message": "Evento no valido"
