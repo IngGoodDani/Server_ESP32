@@ -2,6 +2,7 @@ from    fastapi     import FastAPI, WebSocket, WebSocketDisconnect
 from    pydantic    import BaseModel
 from    fastapi.responses import HTMLResponse
 from    models.measurement  import  Measurement
+from    datetime    import datetime, date, time
 
 class CL_WEBSOCKET:
 
@@ -52,7 +53,7 @@ class CL_WEBSOCKET:
                         await websocket.send_json(response)
     
                         measurement = self.obj_controll.get_data()
-                        await self.broadcast(measurement)
+                        await self.broadcast(self.sanitize(measurement))
                     
                     case "status_measurement":
                         # ====== EVENTO: consulta de estatus ======
@@ -138,3 +139,12 @@ class CL_WEBSOCKET:
                 "status": "error",
                 "message": str(e)
             }
+    
+    def sanitize(self, obj):
+        if isinstance(obj, dict):
+            return {k: self.sanitize(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self.sanitize(i) for i in obj]
+        elif isinstance(obj, (datetime, date, time)):
+            return obj.isoformat()
+        return obj
