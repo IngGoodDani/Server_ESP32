@@ -64,7 +64,7 @@ export function updateGraphs() {
     if (!chart) return;
 
     // Construir etiquetas (índices o timestamps)
-    const labels = data.map(d => d.index);
+    const labels = data.map((d, i) => d.index ?? i + 1);
     const realData = data.map(d => d[variable]);
     const lastValue = realData[realData.length - 1];
 
@@ -133,7 +133,7 @@ export function updateSingleGraph() {
 
   const chart = getState().singleChart;
   const realData = data.map(d => d[variable]);
-  const labels = data.map((_, i) => i);
+  const labels = data.map((d, i) => d.index ?? i + 1);
 
   chart.data.datasets[0].borderColor = colors[variable];
   chart.data.datasets[0].label = variable;

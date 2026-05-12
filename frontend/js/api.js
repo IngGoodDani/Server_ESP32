@@ -2,13 +2,13 @@
 
 import { API_URL, WINDOW_SIZE } from './constants.js';
 import { getState, setState } from './state.js';
-import { updateGraphs, updateRealtimeDisplay, updateToggleRecordingStatus, safeSetTextContent, renderMeasurementsList, displayHistoricalWindow, updateSystemStatusDisplay } from './ui.js';
+import { updateGraphs, updateRealtimeDisplay, updateToggleRecordingStatus, safeSetTextContent, renderMeasurementsList, displayHistoricalWindow, updateSystemStatusDisplay, updateUiMeasureTime } from './ui.js';
 
 let socket = null;
 let reconnectTimer = null;
 let isConnecting = false;
 
-// Funci贸n principal de fetching WebSocket
+// Funcion principal de fetching WebSocket
 export async function ws_fetchData() {
     try {
         if (socket || isConnecting) return;
@@ -16,7 +16,7 @@ export async function ws_fetchData() {
         isConnecting = true;
         
         const { wsIsConnected, reconnectInterval } = getState();
-        socket = new WebSocket("ws://localhost:8000/ws/measurements");
+        socket = new WebSocket("ws://localhost:8000/dashboard/data");
         
         socket.onopen = () => {
             console.log("Ws conectado");
@@ -29,6 +29,12 @@ export async function ws_fetchData() {
             }
             socket.send(JSON.stringify({
                 event: "status_measurement"
+            }));
+            socket.send(JSON.stringify({
+                event: "get_sample_time"
+            }));
+            socket.send(JSON.stringify({
+                event: "get_data"
             }));
         };
         
@@ -69,23 +75,36 @@ function startReconnect() {
 
 function handleWSResponse(data) {
     if (data.event === "new_measurement") {
-        const newData = Array.isArray(data.data) ? data.data : [data.data];
+        const newData = Array.isArray(data.measurements) ? data.measurements : (data.measurements ? [data.measurements] : []);
         const { MAX_POINTS, lastSampleId } = getState();
         const currentData = getState().data;
         newData.forEach(d => currentData.push(d));
         
-        if (currentData.length > MAX_POINTS) {
-            currentData.splice(0, currentData.length - MAX_POINTS);
+        const startIndex = currentData.length;
+        const mappedNew = newData.map((d, i) => ({
+            index: startIndex + i + 1, ...d,
+            PotenciaSalida: d.PotenciaSalida ?? d.potenciaSalida
+        }));
+        
+        let updated = [...currentData, ...mappedNew];
+        
+        if (updated.length > MAX_POINTS) {
+            updated = updated.slice(updated.length - MAX_POINTS);
         }
         
-        const realtimeData = newData[newData.length - 1] || currentData[currentData.length - 1];
-        setState({ data: currentData, realtimeData });
+        const realtimeData = mappedNew[mappedNew.length - 1] || updated[updated.length - 1];
+        setState({ 
+            data: updated,
+            realtimeData,
+            lastSampleId: data.last_update ?? realtiemData?.index ?? 0
+        });
         
         console.log("Total datos:", getState().data.length);
         
         updateGraphs();
+        //console.log("DATA EN GRAFICA:", getState().data);
         if (getState().activeTab === 'realtime') updateRealtimeDisplay();
-        console.log(`馃搳 ${newData.length} nuevas muestras (煤ltima: ${lastSampleId})`);
+        console.log(`${newData.length} nuevas muestras (Ultima: ${lastSampleId})`);
     }
     
     if (data.event === "reponse_status_measurement") {
@@ -96,9 +115,17 @@ function handleWSResponse(data) {
         setState({ isRecording: data.measuring });
         if (changeStatus) updateToggleRecordingStatus();
     }
+    
+    if (data.event === "response_sample_time") {
+        setState({ 
+            timeUnit: data.timeUnit,
+            samplingTime: data.samplingTime
+        });
+        updateUiMeasureTime();
+    }
 }
 
-// Funci贸n principal de fetching (llamada peri贸dica)
+// Funcion principal de fetching (llamada periodica)
 /*export async function fetchData() {
   try {
     const { isRecording, systemStatus } = getState();
@@ -134,7 +161,7 @@ export async function fetchHybridData() {
 
     const json = await response.json();
     if (json.error) {
-      console.warn('鈿狅笍 Error en respuesta streaming:', json.error);
+      console.warn('Error en respuesta streaming:', json.error);
       return;
     }
 
@@ -166,10 +193,10 @@ export async function fetchHybridData() {
 
       updateGraphs();
       if (getState().activeTab === 'realtime') updateRealtimeDisplay();
-      console.log(`馃搳 ${newData.length} nuevas muestras (煤ltima: ${lastSampleId})`);
+      console.log(`${newData.length} nuevas muestras (Ultima: ${lastSampleId})`);
     }
   } catch (error) {
-    console.error('鉂?Error en streaming h铆brido:', error);
+    console.error('?Error en streaming hibrido:', error);
     throw error;
   }
 }
@@ -196,7 +223,7 @@ export async function fetchTraditionalData() {
       if (getState().activeTab === 'realtime') updateRealtimeDisplay();
     }
   } catch (error) {
-    console.error('鉂?Error en fetch tradicional:', error);
+    console.error('?Error en fetch tradicional:', error);
   }
 }
 */
@@ -214,21 +241,21 @@ export async function checkHybridSystemStatus() {
       };
       setState({ systemStatus });
 
-      console.log('鉁?Sistema h铆brido funcionando');
-      console.log('馃捑 Cache SQLite:', systemStatus.cacheSamples, 'muestras');
-      console.log('馃梽锔?PostgreSQL:', systemStatus.postgresSamples, 'muestras');
+      console.log('Sistema hibrido funcionando');
+      console.log('Cache SQLite:', systemStatus.cacheSamples, 'muestras');
+      console.log('?PostgreSQL:', systemStatus.postgresSamples, 'muestras');
 
       updateSystemStatusDisplay();
     }
   } catch (error) {
-    console.log('鈿狅笍 Sistema h铆brido no disponible, usando modo tradicional');
+    console.log('Sistema hbirido no disponible, usando modo tradicional');
     setState({ systemStatus: { ...getState().systemStatus, hybridEnabled: false } });
   }
 }
 
 export async function loadMeasurementsList() {
   try {
-    console.log('馃搵 Cargando lista de mediciones...');
+    console.log('Cargando lista de mediciones...');
     const container = document.getElementById('measurementsList');
     if (!container) return;
 
@@ -241,7 +268,7 @@ export async function loadMeasurementsList() {
 
     let response, json;
 
-    // Intento con resumen h铆brido (comentado por ahora)
+    // Intento con resumen hibrido (comentado por ahora)
     // if (systemStatus.hybridEnabled) { ... }
 
     response = await fetch(`${API_URL}/measurements/list`);
@@ -254,17 +281,17 @@ export async function loadMeasurementsList() {
     if (json.status === 'ok' && json.measurements && json.measurements.length > 0) {
       setState({ allMeasurements: json.measurements });
       renderMeasurementsList();
-      console.log(`鉁?${json.measurements.length} mediciones cargadas`);
+      console.log(`${json.measurements.length} mediciones cargadas`);
     } else {
       container.innerHTML = `
         <div class="no-measurements">
-          <p>No hay mediciones guardadas a煤n</p>
-          <p style="font-size: 12px; margin-top: 10px;">Inicia una grabaci贸n para crear mediciones</p>
+          <p>No hay mediciones guardadas aun</p>
+          <p style="font-size: 12px; margin-top: 10px;">Inicia una grabacion para crear mediciones</p>
         </div>
       `;
     }
   } catch (error) {
-    console.error('鉂?Error cargando mediciones:', error);
+    console.error('Error cargando mediciones:', error);
     const container = document.getElementById('measurementsList');
     if (container) {
       container.innerHTML = `
@@ -280,12 +307,12 @@ export async function loadMeasurementsList() {
 export async function loadSelectedMeasurementData() {
   const { selectedMeasurementId, selectedMeasurementNumSamples } = getState();
   if (!selectedMeasurementId) {
-    alert('Por favor, selecciona una medici贸n primero');
+    alert('Por favor, selecciona una medicion primero');
     return;
   }
 
   try {
-    console.log(`馃搳 Cargando datos de medici贸n #${selectedMeasurementId}...`);
+    console.log(`Cargando datos de medicion #${selectedMeasurementId}...`);
 
     const container = document.getElementById('camViewGrid');
     container.innerHTML = `
@@ -317,19 +344,19 @@ export async function loadSelectedMeasurementData() {
       safeSetTextContent('timelineTotal', selectedMeasurementData.length);
       safeSetTextContent('windowSize', Math.min(WINDOW_SIZE, selectedMeasurementData.length));
 
-      // Limpiar gr谩ficas anteriores
+      // Limpiar graficas anteriores
       setState({ camCharts: {} });
 
       const currentSliderPosition = maxPosition;
       setState({ currentSliderPosition });
       displayHistoricalWindow(currentSliderPosition);
 
-      console.log(`鉁?${selectedMeasurementData.length} muestras cargadas`);
+      console.log(`${selectedMeasurementData.length} muestras cargadas`);
     } else {
       throw new Error(json.message || 'Error al cargar datos');
     }
   } catch (error) {
-    console.error('鉂?Error cargando datos de medici贸n:', error);
+    console.error('Error cargando datos de medicion:', error);
     const container = document.getElementById('camViewGrid');
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">

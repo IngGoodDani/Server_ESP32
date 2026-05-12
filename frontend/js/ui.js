@@ -446,3 +446,20 @@ function updateMeasureTime() {
     put_sample_time(samplingTime.value, timeUnit.value);
     //console.log(`Escala de tiempo actualizada: ${samplingTime.value} ${timeUnit.value} `);
 }
+
+export function updateUiMeasureTime() {
+    const { timeUnit, samplingTime } = getState();
+    const config = scales[timeUnit.value];
+    
+    const samplingTimeEl = document.getElementById('samplingTime');
+    const timeUnitEl = document.getElementById('timeUnit');
+    
+    timeUnitEl.value = timeUnit;
+    samplingTimeEl.min = config.min;
+    samplingTimeEl.max = config.max;
+    samplingTimeEl.step = config.step;
+    samplingTimeEl.value = Math.min(Math.max(samplingTime, config.min), config.max);
+    
+    safeSetTextContent('timeLabel', timeUnitEl.value);
+    safeSetTextContent('timeValue', samplingTimeEl.value);
+}
