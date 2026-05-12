@@ -8,35 +8,67 @@ class CL_WEBSOCKET:
 
     def __init__(self, obj_db, obj_controll):
         # Lista de clientes conectados
-        self.active_connections: List[WebSocket] = []
+        self.esp32_connections: list[WebSocket] = []
+        self.dashboard_connections: list[WebSocket] = []
         self.obj_db = obj_db
         self.obj_controll = obj_controll
 
-    async def connect(self, websocket: WebSocket):
-        # Aceptar conexión del cliente
-        await websocket.accept()
-        self.active_connections.append(websocket)
-        #print("Cliente conectado")
+    async def connect(self, websocket: WebSocket, client: str):
+        # Aceptar conexion del cliente
+        try:
+            await websocket.accept()
+            match client:
+                case "dashboard":
+                    self.dashboard_connections.append(websocket)
+                case "esp32":
+                    self.esp32_connections.append(websocket)
+                case _:
+                    return
+            print(f"\033[32mCLIENT\033[0m:   {client}")
+        except ValueError:
+            pass
 
-    def disconnect(self, websocket: WebSocket):
-        # Remover cliente de la lista
-        self.active_connections.remove(websocket)
-        #print("Cliente desconectado")
+    def disconnect(self, websocket: WebSocket, client: str):
+        # Remover conexion del cliente
+        try:
+            match client:
+                case "dashboard":
+                    self.dashboard_connections.remove(websocket)
+                case "esp32":
+                    self.esp32_connections.remove(websocket)
+                case _:
+                    return
+            print(f"\033[31mCLIENT\033[0m:   {client}")
+        except ValueError:
+            pass
 
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         # Enviar mensaje a un solo cliente
         await websocket.send_json(message)
 
-    async def broadcast(self, message: dict):
-        # Enviar mensaje a todos los clientes conectados
-        for connection in self.active_connections:
-            await connection.send_json(message)
+    async def broadcast(self, message: dict, client: str):
+        # Enviar mensaje
+        match client:
+            case "dashboard":
+                connections = self.dashboard_connections
+            case "esp32":
+                connections = self.esp32_connections
+            case _:
+                return
+                
+        disconnected = []
+        for connection in connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                disconnected.append(connection)
+                
+        for connection in disconnected:
+            connections.remove(connection)
 
-    async def handle_connection(self, websocket: WebSocket):
-        # Manejo principal de la conexión
-
-        await self.connect(websocket)
-
+    async def handle_connection_dashboard(self, websocket: WebSocket):
+        await self.connect(websocket, "dashboard")
+        
         try:
             while True:
                 # Esperar datos del cliente
@@ -47,26 +79,21 @@ class CL_WEBSOCKET:
                 print(f"\033[32mEVENT\033[0m:    {event}")
 
                 match event:
-                    case "esp32_data":
-                        # ====== EVENTO: enviar datos ESP32 ======
-                        response = self.handle_esp32_data(data)
-                        await websocket.send_json(response)
-    
+                    case "get_data":
                         measurement = self.obj_controll.get_data()
-                        await self.broadcast(self.sanitize(measurement))
+                        await websocket.send_json(self.sanitize(measurement))
                     
                     case "status_measurement":
                         # ====== EVENTO: consulta de estatus ======
                         if self.obj_db.current_measurement_id is None:
-                            response = {
-                                "event": "reponse_status_measurement", "measuring": False
-                            }
-                            await websocket.send_json(response)
+                            measuring = False
                         else:
-                            response = {
-                                "event": "reponse_status_measurement", "measuring": True
-                            }
-                            await websocket.send_json(response)
+                            measuring = True
+                        
+                        response = {
+                            "event": "reponse_status_measurement", "measuring": measuring
+                        }
+                        await websocket.send_json(response)
                     
                     case "start_measurement":
                         # ====== EVENTO: inicia medición ======
@@ -80,24 +107,56 @@ class CL_WEBSOCKET:
                     
                     case "get_sample_time":
                         # ====== EVENTO: Consulta teimpo de medicion ======
-                        response = self.obj_controll.get_sampl_time()
+                        response = self.obj_controll.get_sampling_time()
+                        await websocket.send_json(response)
                     
                     case _:
                         response = {
                             "status": "rejected", "message": "Evento no valido"
                         }
                         await websocket.send_json(response)
-                # Aquí puedes:
-                # - Validar datos
-                # - Guardar en base de datos
-                # - Procesar lógica
-
+                
         except WebSocketDisconnect:
-            self.disconnect(websocket)
-            
-    # ====== LÓGICA (reutilizas lo que ya tenías) ======
+            print(f"error {WebSocketDisconnect}")
+            self.disconnect(websocket, "dashboard")
 
-    def handle_esp32_data(self, data: Measurement):
+    async def handle_connection_esp32(self, websocket: WebSocket):
+        # Manejo principal de la conexion al dashboard
+
+        await self.connect(websocket, "esp32")
+
+        try:
+            while True:
+                # Esperar datos del cliente
+                json_response = await websocket.receive_json()
+                
+                event = json_response.get("event")
+                data = json_response.get("data")
+                print(f"\033[32mEVENT\033[0m:    {event}")
+
+                match event:
+                    case "esp32_data":
+                        response = await self.handle_esp32_data(data)
+                        await websocket.send_json(response)
+                    
+                    case "get_sample_time":
+                        # ====== EVENTO: Consulta teimpo de medicion ======
+                        response = self.obj_controll.get_sampling_time()
+                        await websocket.send_json(response)
+                    
+                    case _:
+                        response = {
+                            "event": "error",
+                            "status": "rejected",
+                            "message": "Evento no valido"
+                        }
+                        await websocket.send_json(response)
+        
+        except WebSocketDisconnect:
+            print(f"error {WebSocketDisconnect}")
+            self.disconnect(websocket, "esp32")
+
+    async def handle_esp32_data(self, data: Measurement):
         try:
             if self.obj_db.current_measurement_id is None:
                 return {
@@ -109,7 +168,10 @@ class CL_WEBSOCKET:
             measurements = Measurement(**data)
             #print(f"Data: {measurements}")
             sample_index = self.obj_db.save_measurement(measurements)
-
+            
+            measurement = self.obj_controll.get_data()
+            await self.broadcast(self.sanitize(measurement), "dashboard")
+            
             return {
                 "event": "esp32_data_response",
                 "status": "ok",

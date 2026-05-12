@@ -141,10 +141,12 @@ def end_measurement():
         return {"status": "error", "message": str(e)}
 
 @app.put("/measurement/samplingTime")
-def put_sampling_time(samplingTime: int, timeUnit: str):
+async def put_sampling_time(samplingTime: int, timeUnit: str):
     """Actualiza el tiempo de muestreo"""
     try:
-        return obj_controll.put_sampling_time(samplingTime, timeUnit)
+        response = obj_controll.put_sampling_time(samplingTime, timeUnit)
+        await obj_ws.broadcast(obj_controll.get_sampling_time(), "esp32")
+        return response
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -180,10 +182,14 @@ def delete_measurement_sample(measurement_id: int):
 #----------------------------------------------------------
 # Metodos WebSocket
 #----------------------------------------------------------
-@app.websocket("/ws/measurements")
-async def websocket_endpoint(websocket: WebSocket):
-    await obj_ws.handle_connection(websocket)
+@app.websocket("/dashboard/data")
+async def websocket_get_data(websocket: WebSocket):
+    await obj_ws.handle_connection_dashboard(websocket)
 
+@app.websocket("/esp32/data")
+async def websocket_post_data(websocket: WebSocket):
+    await obj_ws.handle_connection_esp32(websocket)
+    
 #----------------------------------------------------------
 # Metodos del sistema
 #----------------------------------------------------------
